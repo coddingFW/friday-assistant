@@ -1,0 +1,14 @@
+# Ambiente
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Configuração local (nunca versionar segredos/hosts)
+.env
+
+# Modelos e artefatos locais (baixados sob demanda)
+models/
+*.onnx
+*.gguf

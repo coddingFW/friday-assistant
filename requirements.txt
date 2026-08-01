@@ -1,0 +1,10 @@
+# Friday — dependências de runtime do backend (Fase 1)
+# Python 3.12+ (validado localmente em 3.14).
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+httpx>=0.27
+structlog>=24.1
+ddgs>=6.0  # busca DuckDuckGo (sucessor mantido do pacote duckduckgo-search)
