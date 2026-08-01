@@ -40,11 +40,18 @@ Backend: nenhuma nova.
    degradação graciosa já cobria o caso.
 3. **Cold start** do modelo excedendo o read timeout. Timeout → 300s + warm-up.
 
+## Desktop Tauri — compilado com sucesso
+Após instalar Rust + VS Build Tools (workload C++ com Windows SDK), o binário foi
+gerado: `friday.exe` (8 MB), `Finished release in 18m46s`. Ícones gerados via
+`tauri icon` (inclui Android/iOS). Script reutilizável: `frontend/build-desktop.ps1`.
+Três pegadinhas resolvidas e documentadas: ambiente MSVC (vcvars), Windows SDK
+(LNK1181) e `target/` fora do OneDrive (`CARGO_TARGET_DIR`). Ver `frontend/README.md`.
+
 ## Limitações
-- **Rust/cargo ausente** neste ambiente: o shell Tauri não foi compilado aqui. A
-  interface (web app puro) foi validada no navegador — é exatamente o que o Tauri
-  empacota. Compilar o desktop exige `rustup` + WebView2 (ver `frontend/README.md`).
-- Ícones de bundle (`src-tauri/icons/`) pendentes para `tauri build`.
+- Build do desktop **não pode** rodar com `target/` dentro do OneDrive (resolvido
+  via `CARGO_TARGET_DIR`); ideal mover o projeto para fora do OneDrive.
+- `tauri build` completo (instaladores) ainda não executado — só o executável
+  (`--no-bundle`); o bundle baixa NSIS/WiX na primeira vez.
 - Latência de geração em CPU é alta (~2 min p/ respostas com contexto); melhora
   com GPU ou modelo menor (configurável).
 

@@ -20,14 +20,26 @@ cd ..
 uvicorn backend.main:app --reload
 ```
 
-## Desktop com Tauri (exige Rust)
-Instale o Rust (https://rustup.rs) e, no Windows, o WebView2 (já vem no Win11):
-```bash
-npm run tauri dev     # janela nativa em modo dev
-npm run tauri build   # instaladores (precisa de ícones em src-tauri/icons/)
+## Desktop com Tauri (Windows)
+Pré-requisitos (uma vez): **Rust** (`winget install Rustlang.Rustup`), **VS Build
+Tools 2022 com o workload "Desktop development with C++"** (traz MSVC + Windows
+SDK) e **WebView2** (já vem no Win11).
+
+Compile com o script (encapsula as três pegadinhas — ver abaixo):
+```powershell
+./build-desktop.ps1 --no-bundle   # só o executável (rápido)
+./build-desktop.ps1               # + instaladores (bundle)
 ```
-> `cargo` não está instalado neste ambiente, por isso o shell Tauri não foi
-> compilado aqui — a interface foi validada no navegador contra o backend real.
+Saída: `%LOCALAPPDATA%\friday-build\release\friday.exe`. Rode com o **backend no ar**.
+
+### Pegadinhas de build no Windows (aprendidas em teste real)
+1. **Ambiente MSVC**: rode via `vcvars64`/`build-desktop.ps1`, senão o rustc não
+   acha `link.exe` (e, no Git-Bash, pega o `link` errado do GNU/coreutils).
+2. **Windows SDK**: sem o workload "Desktop C++", falta `kernel32.lib` → erro
+   de link `LNK1181`.
+3. **OneDrive**: o `target/` do Rust **não pode** ficar dentro do OneDrive (o sync
+   trava os arquivos → `output path is not a writable directory`). O script já
+   redireciona via `CARGO_TARGET_DIR` para fora do OneDrive.
 
 ## Estrutura
 ```
