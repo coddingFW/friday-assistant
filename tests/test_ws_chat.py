@@ -8,6 +8,7 @@ from backend.main import create_app
 from tests.conftest import (
     FakeLLMProvider,
     FakeSearchProvider,
+    FakeTTSProvider,
     build_conversation_service,
 )
 
@@ -53,6 +54,26 @@ def test_ws_degrades_when_search_fails() -> None:
         assert ws.receive_json() == {"type": "token", "content": "ok"}
         assert ws.receive_json() == {"type": "done"}
         assert ws.receive_json() == {"type": "status", "state": "idle"}
+
+
+def test_ws_emits_audio_event_when_tts_on() -> None:
+    """Com TTS ativo, o cliente deve receber um evento 'audio' (base64) antes do done."""
+    service = build_conversation_service(
+        llm=FakeLLMProvider(tokens=["oi"]), tts=FakeTTSProvider(), tts_enabled=True
+    )
+    app = _app_with_service(service)
+    with TestClient(app).websocket_connect("/ws/chat") as ws:
+        ws.send_json({"type": "user_message", "content": "oi"})
+        events = []
+        while True:
+            ev = ws.receive_json()
+            events.append(ev)
+            if ev["type"] == "done":
+                break
+        audio = [e for e in events if e["type"] == "audio"]
+        assert len(audio) == 1
+        assert audio[0]["mime"] == "audio/wav"
+        assert isinstance(audio[0]["data"], str) and audio[0]["data"]
 
 
 def test_ws_rejects_invalid_message() -> None:

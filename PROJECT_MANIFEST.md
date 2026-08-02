@@ -47,7 +47,7 @@ O Brain **nunca** acessa diretamente webcam, microfone ou tela — apenas a cama
 | LLM | Ollama local (default `llama3.1:8b`, trocável por config) | ADR-0002 |
 | RAG | `ddgs` (DuckDuckGo, top-3), atrás de porta | ADR-0005 |
 | STT | faster-whisper (Whisper) | ADR-0002 |
-| TTS | Piper | ADR-0003 |
+| TTS | Piper (`piper-tts`); sintetiza no Host, toca no cliente | ADR-0003, ADR-0007 |
 | Frontend | Tauri 2.0 + React (TS), web app puro (REST/WS) | ADR-0001, ADR-0006 |
 | Percepção | Camada `perception/` (Ports & Adapters + Strategy) | ADR-0004 |
 | Banco | SQLite via Repository Pattern | — (Fase 9) |
@@ -75,7 +75,7 @@ Todas as soluções são locais.
 | 1 | Infraestrutura (FastAPI, config, logging, Ollama, **camada de sensores**) ✅ |
 | 2 | RAG (busca top-3 → contexto → Ollama, streaming via WS) ✅ |
 | 3 | Interface (Tauri + React, web app puro; chat streaming + fontes) ✅ |
-| 4 | Voz — TTS (Piper) |
+| 4 | Voz — TTS (Piper): síntese no Host, áudio via WS, toca no cliente ✅ |
 | 5 | Avatar |
 | 6 | STT (microfone → primeiro `StreamingSensor` concreto) |
 | 7 | Loop contínuo (multimodal-aware) |

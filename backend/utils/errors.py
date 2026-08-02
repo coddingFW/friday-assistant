@@ -39,6 +39,14 @@ class SearchUnavailableError(RagError):
     """O provedor de busca web está inacessível ou falhou."""
 
 
+class TTSError(FridayError):
+    """Falha genérica na camada de síntese de voz (TTS)."""
+
+
+class TTSUnavailableError(TTSError):
+    """O provedor de TTS (ex.: Piper) está inacessível ou mal configurado."""
+
+
 class SensorError(FridayError):
     """Falha genérica na camada de sensores (percepção multimodal)."""
 

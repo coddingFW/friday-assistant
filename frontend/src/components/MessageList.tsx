@@ -31,6 +31,15 @@ export function MessageList({ messages }: MessageListProps) {
           <div className="msg__bubble">
             {m.content || (m.pending ? <span className="cursor">▍</span> : "")}
             {m.pending && m.content ? <span className="cursor">▍</span> : null}
+            {m.audioUrl ? (
+              <button
+                className="replay"
+                onClick={() => void new Audio(m.audioUrl!).play()}
+                title="Ouvir novamente"
+              >
+                🔊 Ouvir
+              </button>
+            ) : null}
             {m.sources && m.sources.length > 0 ? (
               <Sources sources={m.sources} />
             ) : null}

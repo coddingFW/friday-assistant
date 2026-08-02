@@ -19,7 +19,8 @@ from backend.config.settings import Settings
 from backend.main import create_app
 from backend.rag.ports import SearchResult
 from backend.rag.service import RagService
-from backend.utils.errors import SearchUnavailableError
+from backend.tts.ports import SpeechAudio
+from backend.utils.errors import SearchUnavailableError, TTSError
 
 
 class FakeLLMProvider:
@@ -74,16 +75,37 @@ class FakeSearchProvider:
         return self._results[:max_results]
 
 
+class FakeTTSProvider:
+    """Provedor de TTS falso: devolve bytes fixos (ou falha, se configurado)."""
+
+    name = "fake"
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self._fail = fail
+        self.calls: list[str] = []
+
+    async def health(self) -> bool:
+        return not self._fail
+
+    async def synthesize(self, text: str) -> SpeechAudio:
+        self.calls.append(text)
+        if self._fail:
+            raise TTSError("tts indisponível (fake)")
+        return SpeechAudio(data=b"RIFFfake-wav", mime="audio/wav")
+
+
 def build_conversation_service(
     *,
     llm: FakeLLMProvider | None = None,
     search: FakeSearchProvider | None = None,
     rag_enabled: bool = True,
+    tts: FakeTTSProvider | None = None,
+    tts_enabled: bool = False,
 ) -> ConversationService:
     """Monta um ConversationService com dependências falsas para testes."""
-    settings = Settings(_env_file=None, rag_enabled=rag_enabled)
+    settings = Settings(_env_file=None, rag_enabled=rag_enabled, tts_enabled=tts_enabled)
     rag = RagService(search or FakeSearchProvider(), settings)
-    return ConversationService(llm or FakeLLMProvider(), rag, settings)
+    return ConversationService(llm or FakeLLMProvider(), rag, settings, tts=tts)
 
 
 @pytest.fixture

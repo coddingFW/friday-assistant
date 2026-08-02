@@ -101,6 +101,26 @@ class Settings(BaseSettings):
         description="Prompt de sistema base da assistente.",
     )
 
+    # --- TTS (síntese de voz) ---------------------------------------------
+    tts_enabled: bool = Field(
+        default=False,
+        description="Se True, sintetiza voz da resposta (Piper) e envia ao cliente.",
+    )
+    tts_provider: str = Field(
+        default="piper", description="Provedor de TTS (Strategy). Atual: piper."
+    )
+    piper_binary: str = Field(
+        default="piper",
+        description="Caminho do executável Piper (no PATH ou absoluto).",
+    )
+    piper_voice: str = Field(
+        default="",
+        description="Caminho do modelo de voz .onnx PT-BR (vazio = não configurado).",
+    )
+    tts_timeout: float = Field(
+        default=60.0, gt=0, description="Timeout (s) da síntese de voz."
+    )
+
     # --- Ollama (serviço local) -------------------------------------------
     ollama_base_url: str = Field(
         default="http://127.0.0.1:11434",

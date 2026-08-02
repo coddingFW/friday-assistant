@@ -27,6 +27,7 @@ from backend.perception.manager import SensorManager
 from backend.perception.registry import SensorRegistry
 from backend.rag.factory import create_search_provider
 from backend.rag.service import RagService
+from backend.tts.factory import create_tts_provider
 from backend.utils.logging import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -51,10 +52,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.http_client = client
     app.state.llm_provider = create_llm_provider(settings, client)
 
-    # RAG + orquestração de conversa (caso de uso central do diálogo).
+    # RAG + TTS + orquestração de conversa (caso de uso central do diálogo).
     rag_service = RagService(create_search_provider(settings), settings)
+    tts_provider = create_tts_provider(settings)
     app.state.conversation_service = ConversationService(
-        app.state.llm_provider, rag_service, settings
+        app.state.llm_provider, rag_service, settings, tts=tts_provider
     )
 
     # Camada de percepção multimodal. Registro vazio na Fase 1 — sensores
@@ -69,6 +71,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ollama=settings.ollama_base_url,
         rag_enabled=settings.rag_enabled,
         rag_provider=settings.rag_provider,
+        tts_enabled=settings.tts_enabled,
+        tts_provider=settings.tts_provider,
         sensors=len(app.state.sensor_registry.available()),
         warmup=settings.ollama_warmup,
     )

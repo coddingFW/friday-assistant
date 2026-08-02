@@ -43,6 +43,14 @@ class TokenGenerated:
 
 
 @dataclass(frozen=True, slots=True)
+class AudioReady:
+    """Áudio da resposta sintetizado (TTS), pronto para o cliente reproduzir."""
+
+    data: bytes
+    mime: str
+
+
+@dataclass(frozen=True, slots=True)
 class TurnCompleted:
     """A geração do turno terminou com sucesso."""
 
@@ -58,6 +66,7 @@ ConversationEvent = (
     StatusChanged
     | SourcesGathered
     | TokenGenerated
+    | AudioReady
     | TurnCompleted
     | GenerationFailed
 )

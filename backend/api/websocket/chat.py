@@ -20,7 +20,10 @@ from __future__ import annotations
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
+import base64
+
 from backend.api.websocket.protocol import (
+    AudioEvent,
     DoneEvent,
     ErrorEvent,
     Source,
@@ -31,6 +34,7 @@ from backend.api.websocket.protocol import (
 )
 from backend.brain.conversation import ConversationService
 from backend.brain.events import (
+    AudioReady,
     GenerationFailed,
     SourcesGathered,
     StatusChanged,
@@ -107,6 +111,10 @@ def _to_protocol(event: object) -> dict | None:
         ).model_dump()
     if isinstance(event, TokenGenerated):
         return TokenEvent(content=event.text).model_dump()
+    if isinstance(event, AudioReady):
+        return AudioEvent(
+            mime=event.mime, data=base64.b64encode(event.data).decode("ascii")
+        ).model_dump()
     if isinstance(event, TurnCompleted):
         return DoneEvent().model_dump()
     if isinstance(event, GenerationFailed):

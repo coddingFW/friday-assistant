@@ -21,6 +21,11 @@ export interface TokenEvent {
   type: "token";
   content: string;
 }
+export interface AudioEvent {
+  type: "audio";
+  mime: string;
+  data: string; // base64
+}
 export interface DoneEvent {
   type: "done";
 }
@@ -33,6 +38,7 @@ export type ServerEvent =
   | StatusEvent
   | SourcesEvent
   | TokenEvent
+  | AudioEvent
   | DoneEvent
   | ErrorEvent;
 
@@ -51,6 +57,7 @@ export interface ChatMessage {
   role: Role;
   content: string;
   sources?: Source[];
+  audioUrl?: string;
   pending?: boolean;
 }
 

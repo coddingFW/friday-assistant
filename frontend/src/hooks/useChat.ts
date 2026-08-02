@@ -52,6 +52,13 @@ export function useChat(): UseChat {
         case "token":
           patchAssistant((m) => ({ ...m, content: m.content + event.content }));
           break;
+        case "audio": {
+          const url = `data:${event.mime};base64,${event.data}`;
+          patchAssistant((m) => ({ ...m, audioUrl: url }));
+          // Autoplay (o envio do usuário já conta como gesto que libera áudio).
+          void new Audio(url).play().catch(() => undefined);
+          break;
+        }
         case "done":
           patchAssistant((m) => ({ ...m, pending: false }));
           break;

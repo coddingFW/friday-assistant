@@ -18,6 +18,7 @@ o que causa lentidão, cópias de conflito e venvs quebrados. Recomendado:
 | **Python 3.12+** | backend | https://python.org (ou winget `Python.Python.3.12`) |
 | **Node.js 18+** | frontend | https://nodejs.org (ou winget `OpenJS.NodeJS`) |
 | **Ollama** | LLM local | `winget install Ollama.Ollama` + `ollama pull llama3.1:8b` |
+| **Voz Piper** (opcional) | TTS | `piper-tts` vem no `requirements`; baixe a voz PT-BR: `python -m piper.download_voices pt_BR-faber-medium --download-dir models` e aponte `FRIDAY_PIPER_VOICE` para o `.onnx` |
 | **Rust** (opcional) | compilar o desktop Tauri | `winget install Rustlang.Rustup` |
 | **VS Build Tools + WebView2** (opcional) | compilar o desktop no Windows | VS Build Tools 2022 c/ "Desktop C++"; WebView2 já vem no Win11 |
 

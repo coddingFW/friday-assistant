@@ -187,6 +187,24 @@ body {
   }
 }
 
+/* Replay de áudio */
+.replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+.replay:hover {
+  background: var(--surface);
+}
+
 /* Sources */
 .sources {
   margin-top: 10px;

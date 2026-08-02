@@ -56,6 +56,14 @@ class TokenEvent(BaseModel):
     content: str
 
 
+class AudioEvent(BaseModel):
+    """Áudio da resposta (TTS) para o cliente reproduzir. Dados em base64."""
+
+    type: Literal["audio"] = "audio"
+    mime: str
+    data: str  # base64
+
+
 class DoneEvent(BaseModel):
     """Sinaliza o fim da geração."""
 

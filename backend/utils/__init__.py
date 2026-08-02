@@ -10,6 +10,8 @@ from backend.utils.errors import (
     SearchUnavailableError,
     SensorError,
     SensorNotFoundError,
+    TTSError,
+    TTSUnavailableError,
 )
 from backend.utils.logging import configure_logging, get_logger
 
@@ -25,4 +27,6 @@ __all__ = [
     "SearchUnavailableError",
     "SensorError",
     "SensorNotFoundError",
+    "TTSError",
+    "TTSUnavailableError",
 ]
