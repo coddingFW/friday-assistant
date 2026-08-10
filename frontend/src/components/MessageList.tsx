@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { ChatMessage } from "../types";
 import { audioPlayer } from "../services/audioPlayer";
 import { Sources } from "./Sources";
+import { Markdown } from "./Markdown";
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -30,8 +31,15 @@ export function MessageList({ messages }: MessageListProps) {
       {messages.map((m) => (
         <div key={m.id} className={`msg msg--${m.role}`}>
           <div className="msg__bubble">
-            {m.content || (m.pending ? <span className="cursor">▍</span> : "")}
-            {m.pending && m.content ? <span className="cursor">▍</span> : null}
+            {m.role === "assistant" ? (
+              m.content ? (
+                <Markdown>{m.content}</Markdown>
+              ) : m.pending ? (
+                <span className="cursor">▍</span>
+              ) : null
+            ) : (
+              m.content
+            )}
             {m.audioUrl ? (
               <button
                 className="replay"

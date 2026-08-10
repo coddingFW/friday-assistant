@@ -5,15 +5,21 @@ export function Sources({ sources }: { sources: Source[] }) {
   return (
     <div className="sources">
       <span className="sources__label">Fontes</span>
-      <ol className="sources__list">
+      <div className="sources__chips">
         {sources.map((s, i) => (
-          <li key={i}>
-            <a href={s.url} target="_blank" rel="noreferrer noopener">
-              {s.title || s.url}
-            </a>
-          </li>
+          <a
+            key={i}
+            className="chip"
+            href={s.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={s.url}
+          >
+            <span className="chip__i" aria-hidden="true">◆</span>
+            {s.title || s.url}
+          </a>
         ))}
-      </ol>
+      </div>
     </div>
   );
 }

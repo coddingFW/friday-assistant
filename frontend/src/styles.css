@@ -1,15 +1,23 @@
 :root {
-  --bg: #0f1115;
-  --surface: #171a21;
-  --surface-2: #1e222b;
-  --border: #2a2f3a;
-  --text: #e6e8ee;
-  --text-dim: #9aa3b2;
-  --accent: #6ea8fe;
-  --accent-strong: #4d8bff;
-  --user: #2b3b5c;
+  --bg: #0a0e13;
+  --surface: #10161e;
+  --surface-2: #0d141c;
+  --panel: #10161e;
+  --raised: #141d28;
+  --border: #223040;
+  --border-soft: #1a2430;
+  --text: #e7eef5;
+  --text-dim: #93a1b1;
+  --muted: #93a1b1;
+  --faint: #63748a;
+  --accent: #34d6c0;
+  --accent-strong: #25bfaa;
+  --accent-ink: #04211d;
+  --accent-line: rgba(52, 214, 192, 0.34);
+  --accent-weak: rgba(52, 214, 192, 0.13);
+  --user: rgba(52, 214, 192, 0.12);
   --danger: #ff6b6b;
-  --radius: 14px;
+  --radius: 15px;
   color-scheme: dark;
 }
 
@@ -45,8 +53,12 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 .header__brand {
   display: flex;
@@ -317,22 +329,22 @@ body {
   justify-content: flex-start;
 }
 .msg__bubble {
-  max-width: 78%;
-  padding: 11px 14px;
+  max-width: 80%;
+  padding: 11px 15px;
   border-radius: var(--radius);
-  line-height: 1.5;
-  white-space: pre-wrap;
+  line-height: 1.62;
   word-wrap: break-word;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
 }
 .msg--user .msg__bubble {
   background: var(--user);
-  border-color: transparent;
-  border-bottom-right-radius: 4px;
+  border-color: var(--accent-line);
+  border-bottom-right-radius: 5px;
+  white-space: pre-wrap;
 }
 .msg--assistant .msg__bubble {
-  background: var(--surface-2);
-  border-bottom-left-radius: 4px;
+  background: var(--surface);
+  border-bottom-left-radius: 5px;
 }
 .cursor {
   color: var(--accent);
@@ -362,30 +374,76 @@ body {
   background: var(--surface);
 }
 
-/* Sources */
-.sources {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border);
-}
+/* Fontes como chips */
+.sources { margin-top: 12px; }
 .sources__label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-dim);
+  display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--faint); margin-bottom: 7px;
 }
-.sources__list {
-  margin: 6px 0 0;
-  padding-left: 18px;
+.sources__chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%;
+  font-size: 12px; color: var(--muted); font-weight: 600; text-decoration: none;
+  padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--raised); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sources__list a {
-  color: var(--accent);
-  text-decoration: none;
-  font-size: 13px;
+.chip:hover { color: var(--accent); border-color: var(--accent-line); }
+.chip__i { color: var(--accent); font-size: 10px; flex: 0 0 auto; }
+
+/* Markdown das respostas */
+.md { line-height: 1.62; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p { margin: 0 0 10px; }
+.md ul, .md ol { margin: 0 0 10px; padding-left: 22px; }
+.md li { margin: 3px 0; }
+.md li::marker { color: var(--faint); }
+.md a { color: var(--accent); text-decoration: none; }
+.md a:hover { text-decoration: underline; }
+.md strong { color: #fff; font-weight: 700; }
+.md h1, .md h2, .md h3, .md h4 { margin: 14px 0 8px; line-height: 1.3; font-weight: 700; }
+.md h1 { font-size: 1.35em; } .md h2 { font-size: 1.2em; } .md h3 { font-size: 1.08em; }
+.md blockquote { margin: 10px 0; padding: 2px 14px; border-left: 3px solid var(--accent-line); color: var(--muted); }
+.md hr { border: none; border-top: 1px solid var(--border-soft); margin: 14px 0; }
+.md :not(pre) > code {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 0.86em; padding: 1px 6px; border-radius: 6px;
+  background: rgba(52, 214, 192, 0.12); color: #a7ecdf; border: 1px solid rgba(52, 214, 192, 0.18);
 }
-.sources__list a:hover {
-  text-decoration: underline;
+.md table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13.5px; display: block; overflow-x: auto; }
+.md th, .md td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.md th { background: var(--raised); }
+
+/* Bloco de código */
+.md-code { margin: 12px 0; border-radius: 12px; overflow: hidden; border: 1px solid #1e2a38; background: #0b1017; }
+.md-code__bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 12px; background: #0e1621; border-bottom: 1px solid #1b2735;
 }
+.md-code__lang { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7f95; font-weight: 700; }
+.md-code__copy {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px;
+  color: #9fb2c6; background: transparent; border: 1px solid #24354a; padding: 3px 9px; border-radius: 7px; font-weight: 600;
+}
+.md-code__copy:hover { color: var(--accent); border-color: var(--accent-line); }
+.md-code pre { margin: 0; padding: 13px 15px; overflow-x: auto; }
+.md-code code {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.7; color: #cdd7e3; background: none; border: none; padding: 0;
+}
+
+/* highlight.js — tema próprio (combina com o teal) */
+.hljs-comment, .hljs-quote { color: #5c6b7a; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-name { color: #c792ea; }
+.hljs-string, .hljs-attr, .hljs-template-string, .hljs-addition { color: #ecc48d; }
+.hljs-number, .hljs-symbol, .hljs-bullet { color: #f78c6c; }
+.hljs-title, .hljs-section, .hljs-title.function_ { color: #82aaff; }
+.hljs-built_in, .hljs-type, .hljs-builtin-name { color: #7fdbca; }
+.hljs-attribute { color: #addb67; }
+.hljs-variable, .hljs-template-variable { color: #d6deeb; }
+.hljs-meta { color: #6b7f95; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
 
 /* Banner */
 .banner {
