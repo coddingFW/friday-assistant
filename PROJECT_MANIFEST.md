@@ -78,7 +78,7 @@ Todas as soluções são locais.
 | 4 | Voz — TTS (Piper): síntese no Host, áudio via WS, toca no cliente ✅ |
 | 5 | Avatar (frontend; expressão por status + lip-sync por amplitude) ✅ |
 | 6 | STT (microfone → primeiro `StreamingSensor` concreto) ✅ |
-| 7 | Loop contínuo (multimodal-aware) |
+| 7 | Loop contínuo (multimodal-aware) — mãos-livres + wake word ✅ |
 | **8** | **Visão / Multimodalidade** (webcam, captura de tela, OCR, LLM de visão) — habilitada pela camada de sensores |
 | 9 | Evolução (memória longa, cache, múltiplos modelos, plugins, empacotamento) |
 

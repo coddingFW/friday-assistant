@@ -23,6 +23,12 @@ export default function App() {
     setAutoSend,
     speaking,
     stopSpeaking,
+    handsFree,
+    setHandsFree,
+    wakeWord,
+    setWakeWord,
+    requireWakeWord,
+    setRequireWakeWord,
   } = useChat();
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [customizing, setCustomizing] = useState(false);
@@ -65,6 +71,12 @@ export default function App() {
           onToggleAutoSend={setAutoSend}
           speaking={speaking}
           onStopSpeaking={stopSpeaking}
+          handsFree={handsFree}
+          onToggleHandsFree={setHandsFree}
+          wakeWord={wakeWord}
+          onChangeWakeWord={setWakeWord}
+          requireWakeWord={requireWakeWord}
+          onToggleRequireWake={setRequireWakeWord}
         />
       </footer>
       <AvatarCustomizer open={customizing} onClose={() => setCustomizing(false)} />

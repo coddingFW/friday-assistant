@@ -599,6 +599,21 @@ body {
   background: #e5484d;
   color: #fff;
 }
+.composer__opts {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 4px;
+}
+.composer__toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none;
+}
+.composer__toggle input[type="checkbox"] { accent-color: var(--accent); }
+.composer__wake {
+  width: 96px; padding: 3px 8px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--raised); color: var(--text);
+  font-size: 12.5px; font-family: inherit;
+}
+.composer__wake:disabled { opacity: 0.5; }
+.composer__mic:disabled { opacity: 0.4; cursor: not-allowed; }
 .composer__input {
   flex: 1;
   resize: none;

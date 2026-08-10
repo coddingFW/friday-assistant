@@ -1,22 +1,32 @@
-// Hook que orquestra o chat: gerencia a conexão WebSocket, o estado das
-// mensagens, os indicadores de status, o streaming de tokens e a escuta por voz
-// (STT). A transcrição pode auto-enviar ou apenas preencher o campo — preferência
-// do usuário, persistida em localStorage.
+// Hook que orquestra o chat: conexão WebSocket, mensagens, status, streaming e a
+// voz (STT). Modos da voz:
+//  - push-to-talk (clicar no mic): a transcrição auto-envia OU preenche o campo;
+//  - mãos-livres: mic contínuo; só age quando a fala tem a wake word ("Friday").
+// Anti-eco: enquanto a Friday processa/fala, o mic é pausado (não transcreve a
+// própria voz). Preferências persistidas em localStorage.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSocket } from "../services/chatSocket";
 import { audioPlayer } from "../services/audioPlayer";
+import { detectWake } from "../services/wakeWord";
 import type { ChatMessage, ServerEvent, StatusState } from "../types";
 
 let counter = 0;
 const newId = (): string => `${Date.now()}-${counter++}`;
 
-const AUTOSEND_KEY = "friday.autosend";
-const readAutoSend = (): boolean => {
+const readBool = (key: string, def: boolean): boolean => {
   try {
-    return localStorage.getItem(AUTOSEND_KEY) === "1";
+    const v = localStorage.getItem(key);
+    return v === null ? def : v === "1";
   } catch {
-    return false;
+    return def;
+  }
+};
+const writeBool = (key: string, v: boolean): void => {
+  try {
+    localStorage.setItem(key, v ? "1" : "0");
+  } catch {
+    /* opcional */
   }
 };
 
@@ -34,6 +44,12 @@ export interface UseChat {
   setAutoSend: (value: boolean) => void;
   speaking: boolean;
   stopSpeaking: () => void;
+  handsFree: boolean;
+  setHandsFree: (value: boolean) => void;
+  wakeWord: string;
+  setWakeWord: (value: string) => void;
+  requireWakeWord: boolean;
+  setRequireWakeWord: (value: boolean) => void;
 }
 
 export function useChat(): UseChat {
@@ -44,28 +60,82 @@ export function useChat(): UseChat {
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [autoSend, setAutoSendState] = useState<boolean>(readAutoSend);
+  const [turnActive, setTurnActive] = useState(false);
+  const [autoSend, setAutoSendState] = useState<boolean>(() => readBool("friday.autosend", false));
+  // Mãos-livres NÃO é persistido: ligar exige um gesto (destrava o áudio da fala).
+  const [handsFree, setHandsFreeState] = useState(false);
+  const [wakeWord, setWakeWordState] = useState<string>(() => {
+    try {
+      return localStorage.getItem("friday.wakeWord") ?? "Friday";
+    } catch {
+      return "Friday";
+    }
+  });
+  const [requireWakeWord, setRequireWakeState] = useState<boolean>(() => readBool("friday.requireWake", true));
+
   const socketRef = useRef<ChatSocket | null>(null);
+  const micOnRef = useRef(false);
+  const prevHandsFree = useRef(false);
 
-  // Reflete no React quando a Friday começa/para de falar (para o botão de parar).
-  useEffect(() => audioPlayer.onChange(() => setSpeaking(audioPlayer.speaking)), []);
-
-  const stopSpeaking = useCallback(() => audioPlayer.stop(), []);
-
-  // Ref para ler a preferência atual dentro do handler sem reconectar o socket.
+  // Refs para ler o estado atual dentro do handler sem reconectar o socket.
   const autoSendRef = useRef(autoSend);
   autoSendRef.current = autoSend;
+  const handsFreeRef = useRef(handsFree);
+  handsFreeRef.current = handsFree;
+  const requireWakeRef = useRef(requireWakeWord);
+  requireWakeRef.current = requireWakeWord;
+  const wakeWordRef = useRef(wakeWord);
+  wakeWordRef.current = wakeWord;
+  const turnActiveRef = useRef(turnActive);
+  turnActiveRef.current = turnActive;
+
+  useEffect(() => audioPlayer.onChange(() => setSpeaking(audioPlayer.speaking)), []);
+  const stopSpeaking = useCallback(() => audioPlayer.stop(), []);
 
   const setAutoSend = useCallback((value: boolean) => {
     setAutoSendState(value);
+    writeBool("friday.autosend", value);
+  }, []);
+  const setWakeWord = useCallback((value: string) => {
+    setWakeWordState(value);
     try {
-      localStorage.setItem(AUTOSEND_KEY, value ? "1" : "0");
+      localStorage.setItem("friday.wakeWord", value);
     } catch {
-      // Preferência é opcional; ignora se o storage não estiver disponível.
+      /* opcional */
+    }
+  }, []);
+  const setRequireWakeWord = useCallback((value: boolean) => {
+    setRequireWakeState(value);
+    writeBool("friday.requireWake", value);
+  }, []);
+  const setHandsFree = useCallback((value: boolean) => {
+    if (value) {
+      audioPlayer.stop();
+      void audioPlayer.unlock(); // gesto do usuário destrava a fala futura
+    }
+    setHandsFreeState(value);
+  }, []);
+
+  // Liga/desliga o microfone de forma idempotente e reflete no indicador.
+  const setMic = useCallback((on: boolean) => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+    if (on === micOnRef.current) return;
+    micOnRef.current = on;
+    setListening(on);
+    try {
+      if (on) {
+        audioPlayer.stop();
+        void audioPlayer.unlock();
+        socket.startListening();
+      } else {
+        socket.stopListening();
+      }
+    } catch {
+      /* reconciliado pelos eventos/estado */
     }
   }, []);
 
-  // Atualiza a última mensagem do assistente (a que está sendo gerada).
   const patchAssistant = useCallback(
     (patch: (m: ChatMessage) => ChatMessage) => {
       setMessages((prev) => {
@@ -85,11 +155,10 @@ export function useChat(): UseChat {
   const send = useCallback((text: string) => {
     const content = text.trim();
     if (!content || !socketRef.current?.connected) return;
-    // Barge-in: uma nova mensagem interrompe a fala em andamento.
-    audioPlayer.stop();
-    // Destrava o áudio no gesto do usuário (a fala chega segundos depois).
+    audioPlayer.stop(); // barge-in
     void audioPlayer.unlock();
     setError(null);
+    setTurnActive(true);
     setMessages((prev) => [
       ...prev,
       { id: newId(), role: "user", content },
@@ -99,6 +168,7 @@ export function useChat(): UseChat {
       socketRef.current.send(content);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao enviar.");
+      setTurnActive(false);
     }
   }, []);
 
@@ -107,9 +177,6 @@ export function useChat(): UseChat {
       switch (event.type) {
         case "status":
           setStatus(event.state);
-          // "listening" liga o indicador; NÃO o desligamos no "idle" do turno —
-          // o microfone segue ativo (o fim de um turno não é o fim da escuta).
-          if (event.state === "listening") setListening(true);
           break;
         case "sources":
           patchAssistant((m) => ({ ...m, sources: event.sources }));
@@ -120,14 +187,23 @@ export function useChat(): UseChat {
         case "audio": {
           const url = `data:${event.mime};base64,${event.data}`;
           patchAssistant((m) => ({ ...m, audioUrl: url }));
-          // Toca pelo audioPlayer (roteado no AnalyserNode p/ o avatar animar).
           void audioPlayer.play(url);
           break;
         }
         case "transcript": {
           const text = event.text.trim();
           if (!text) break;
-          if (autoSendRef.current) {
+          if (handsFreeRef.current) {
+            // Anti-eco: ignora transcrições enquanto ela processa ou fala
+            // (o backend segue captando durante o turno; o cliente não age).
+            if (turnActiveRef.current || audioPlayer.speaking) break;
+            if (requireWakeRef.current) {
+              const { matched, command } = detectWake(text, wakeWordRef.current);
+              if (matched && command) send(command);
+            } else {
+              send(text);
+            }
+          } else if (autoSendRef.current) {
             send(text);
           } else {
             setDraft((prev) => (prev ? `${prev} ${text}` : text));
@@ -135,11 +211,12 @@ export function useChat(): UseChat {
           break;
         }
         case "done":
+          setTurnActive(false);
           patchAssistant((m) => ({ ...m, pending: false }));
           break;
         case "error":
           setError(event.message);
-          setListening(false);
+          setTurnActive(false);
           patchAssistant((m) => ({ ...m, pending: false }));
           break;
       }
@@ -155,6 +232,7 @@ export function useChat(): UseChat {
       },
       onClose: () => {
         setConnected(false);
+        micOnRef.current = false;
         setListening(false);
       },
       onEvent: handleEvent,
@@ -164,29 +242,22 @@ export function useChat(): UseChat {
     return () => socket.close();
   }, [handleEvent]);
 
-  const toggleListening = useCallback(() => {
-    const socket = socketRef.current;
-    if (!socket?.connected) return;
-    if (listening) {
-      try {
-        socket.stopListening();
-      } catch {
-        // conexão pode ter caído; o estado é reconciliado pelos eventos.
-      }
-      setListening(false);
-    } else {
-      // Barge-in: começar a falar interrompe a fala atual da Friday.
-      audioPlayer.stop();
-      // Gesto do usuário: destrava o áudio para a resposta falada depois.
-      void audioPlayer.unlock();
-      setError(null);
-      try {
-        socket.startListening();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Falha ao iniciar a escuta.");
-      }
+  // Mãos-livres: o mic fica ligado, mas pausa enquanto ela processa (turno ativo)
+  // ou fala (anti-eco). No modo manual, este efeito não mexe no mic.
+  const busy = turnActive || speaking;
+  useEffect(() => {
+    if (handsFree) {
+      setMic(!busy);
+    } else if (prevHandsFree.current) {
+      setMic(false); // acabou de desligar o mãos-livres
     }
-  }, [listening]);
+    prevHandsFree.current = handsFree;
+  }, [handsFree, busy, connected, setMic]);
+
+  const toggleListening = useCallback(() => {
+    if (handsFreeRef.current) return; // no mãos-livres o mic é automático
+    setMic(!micOnRef.current);
+  }, [setMic]);
 
   return {
     messages,
@@ -202,5 +273,11 @@ export function useChat(): UseChat {
     setAutoSend,
     speaking,
     stopSpeaking,
+    handsFree,
+    setHandsFree,
+    wakeWord,
+    setWakeWord,
+    requireWakeWord,
+    setRequireWakeWord,
   };
 }

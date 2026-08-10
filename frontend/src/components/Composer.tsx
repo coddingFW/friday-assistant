@@ -12,6 +12,12 @@ interface ComposerProps {
   onToggleAutoSend: (value: boolean) => void;
   speaking: boolean;
   onStopSpeaking: () => void;
+  handsFree: boolean;
+  onToggleHandsFree: (value: boolean) => void;
+  wakeWord: string;
+  onChangeWakeWord: (value: string) => void;
+  requireWakeWord: boolean;
+  onToggleRequireWake: (value: boolean) => void;
 }
 
 export function Composer({
@@ -26,6 +32,12 @@ export function Composer({
   onToggleAutoSend,
   speaking,
   onStopSpeaking,
+  handsFree,
+  onToggleHandsFree,
+  wakeWord,
+  onChangeWakeWord,
+  requireWakeWord,
+  onToggleRequireWake,
 }: ComposerProps) {
   const submit = () => {
     const text = value.trim();
@@ -34,7 +46,6 @@ export function Composer({
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter envia; Shift+Enter quebra linha.
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
@@ -43,9 +54,13 @@ export function Composer({
 
   const placeholder = disabled
     ? "Conectando ao backend…"
-    : listening
-      ? "Ouvindo… fale agora"
-      : "Escreva sua mensagem…";
+    : handsFree
+      ? requireWakeWord
+        ? `Mãos-livres — diga "${wakeWord}" para falar`
+        : "Mãos-livres — pode falar"
+      : listening
+        ? "Ouvindo… fale agora"
+        : "Escreva sua mensagem…";
 
   return (
     <div className="composer">
@@ -54,8 +69,14 @@ export function Composer({
           type="button"
           className={`composer__mic ${listening ? "composer__mic--on" : ""}`}
           onClick={onToggleListen}
-          disabled={disabled}
-          title={listening ? "Parar de ouvir" : "Falar (microfone)"}
+          disabled={disabled || handsFree}
+          title={
+            handsFree
+              ? "Microfone automático (mãos-livres)"
+              : listening
+                ? "Parar de ouvir"
+                : "Falar (microfone)"
+          }
           aria-pressed={listening}
         >
           {listening ? "■" : "🎤"}
@@ -89,14 +110,45 @@ export function Composer({
           </button>
         )}
       </div>
-      <label className="composer__autosend" title="Enviar a fala automaticamente ao terminar">
-        <input
-          type="checkbox"
-          checked={autoSend}
-          onChange={(e) => onToggleAutoSend(e.target.checked)}
-        />
-        Enviar a fala automaticamente
-      </label>
+
+      <div className="composer__opts">
+        <label className="composer__toggle" title="Conversa contínua por voz, sem clicar">
+          <input
+            type="checkbox"
+            checked={handsFree}
+            onChange={(e) => onToggleHandsFree(e.target.checked)}
+          />
+          Mãos-livres
+        </label>
+
+        {handsFree ? (
+          <label className="composer__toggle" title="Só responder quando você chamar pelo nome">
+            <input
+              type="checkbox"
+              checked={requireWakeWord}
+              onChange={(e) => onToggleRequireWake(e.target.checked)}
+            />
+            chamar por
+            <input
+              className="composer__wake"
+              type="text"
+              value={wakeWord}
+              disabled={!requireWakeWord}
+              onChange={(e) => onChangeWakeWord(e.target.value)}
+              aria-label="Palavra de ativação"
+            />
+          </label>
+        ) : (
+          <label className="composer__toggle" title="Enviar a fala automaticamente ao terminar">
+            <input
+              type="checkbox"
+              checked={autoSend}
+              onChange={(e) => onToggleAutoSend(e.target.checked)}
+            />
+            Enviar a fala automaticamente
+          </label>
+        )}
+      </div>
     </div>
   );
 }
