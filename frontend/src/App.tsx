@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Header } from "./components/Header";
 import { FriendlyAvatar } from "./components/FriendlyAvatar";
+import { AvatarCustomizer } from "./components/AvatarCustomizer";
 import { Composer } from "./components/Composer";
 import { MessageList } from "./components/MessageList";
 import { useChat } from "./hooks/useChat";
@@ -24,6 +25,7 @@ export default function App() {
     stopSpeaking,
   } = useChat();
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [customizing, setCustomizing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -39,7 +41,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header health={health} connected={connected} status={status} />
+      <Header health={health} connected={connected} status={status} onCustomize={() => setCustomizing(true)} />
       <div className="app__stage">
         <FriendlyAvatar status={status} />
       </div>
@@ -65,6 +67,7 @@ export default function App() {
           onStopSpeaking={stopSpeaking}
         />
       </footer>
+      <AvatarCustomizer open={customizing} onClose={() => setCustomizing(false)} />
     </div>
   );
 }

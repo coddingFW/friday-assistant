@@ -3,24 +3,17 @@
 // conforme o estado e a voz: lip-sync trocando a boca pela amplitude do áudio,
 // e "gestos" espontâneos (piscar, wink, língua) para dar personalidade.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createAvatar } from "@dicebear/core";
 import { avataaars } from "@dicebear/collection";
 import { audioPlayer } from "../services/audioPlayer";
+import {
+  configToOptions,
+  getAvatarConfig,
+  getAvatarVersion,
+  subscribeAvatarConfig,
+} from "../services/avatarConfig";
 import type { StatusState } from "../types";
-
-// Base fixa (cores e traços escolhidos); só olhos/boca/sobrancelha animam.
-const BASE = {
-  seed: "friday",
-  backgroundColor: ["transparent"],
-  skinColor: ["57331f"],
-  hairColor: ["b58143"],
-  top: ["shortWaved"],
-  clothing: ["shirtCrewNeck"],
-  clothesColor: ["ff4c77"],
-  facialHairProbability: 0,
-  accessoriesProbability: 0,
-};
 
 const LABELS: Record<StatusState, string> = {
   idle: "Pronta",
@@ -37,13 +30,13 @@ interface Expr {
 }
 
 const svgCache = new Map<string, string>();
-function svgFor(e: Expr): string {
-  const key = `${e.eyes}|${e.mouth}|${e.eyebrows}`;
+function svgFor(base: Record<string, unknown>, e: Expr, version: number): string {
+  const key = `${version}|${e.eyes}|${e.mouth}|${e.eyebrows}`;
   let svg = svgCache.get(key);
   if (svg === undefined) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     svg = createAvatar(avataaars, {
-      ...BASE,
+      ...base,
       eyes: [e.eyes],
       mouth: [e.mouth],
       eyebrows: [e.eyebrows],
@@ -158,7 +151,10 @@ export function FriendlyAvatar({ status }: { status: StatusState }) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const svg = useMemo(() => svgFor(expr), [expr]);
+  // Reage à personalização do usuário (config persistida).
+  const version = useSyncExternalStore(subscribeAvatarConfig, getAvatarVersion);
+  const base = useMemo(() => configToOptions(getAvatarConfig()), [version]);
+  const svg = useMemo(() => svgFor(base, expr, version), [base, expr, version]);
   const speaking = audioPlayer.speaking;
 
   return (
