@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ChatMessage } from "../types";
+import { audioPlayer } from "../services/audioPlayer";
 import { Sources } from "./Sources";
 
 interface MessageListProps {
@@ -34,7 +35,7 @@ export function MessageList({ messages }: MessageListProps) {
             {m.audioUrl ? (
               <button
                 className="replay"
-                onClick={() => void new Audio(m.audioUrl!).play()}
+                onClick={() => void audioPlayer.play(m.audioUrl!)}
                 title="Ouvir novamente"
               >
                 🔊 Ouvir

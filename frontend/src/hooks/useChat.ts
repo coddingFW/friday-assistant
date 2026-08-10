@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSocket } from "../services/chatSocket";
+import { audioPlayer } from "../services/audioPlayer";
 import type { ChatMessage, ServerEvent, StatusState } from "../types";
 
 let counter = 0;
@@ -55,8 +56,8 @@ export function useChat(): UseChat {
         case "audio": {
           const url = `data:${event.mime};base64,${event.data}`;
           patchAssistant((m) => ({ ...m, audioUrl: url }));
-          // Autoplay (o envio do usuário já conta como gesto que libera áudio).
-          void new Audio(url).play().catch(() => undefined);
+          // Toca pelo audioPlayer (roteado no AnalyserNode p/ o avatar animar).
+          void audioPlayer.play(url);
           break;
         }
         case "done":
@@ -88,6 +89,8 @@ export function useChat(): UseChat {
   const send = useCallback((text: string) => {
     const content = text.trim();
     if (!content || !socketRef.current?.connected) return;
+    // Destrava o áudio no gesto do usuário (a fala chega segundos depois).
+    void audioPlayer.unlock();
     setError(null);
     setMessages((prev) => [
       ...prev,

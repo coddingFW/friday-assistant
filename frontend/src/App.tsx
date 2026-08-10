@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Header } from "./components/Header";
+import { Avatar3D } from "./components/Avatar3D";
 import { Composer } from "./components/Composer";
 import { MessageList } from "./components/MessageList";
 import { useChat } from "./hooks/useChat";
@@ -25,6 +26,9 @@ export default function App() {
   return (
     <div className="app">
       <Header health={health} connected={connected} status={status} />
+      <div className="app__stage">
+        <Avatar3D status={status} />
+      </div>
       <main className="app__main">
         <MessageList messages={messages} />
       </main>

@@ -76,7 +76,7 @@ Todas as soluções são locais.
 | 2 | RAG (busca top-3 → contexto → Ollama, streaming via WS) ✅ |
 | 3 | Interface (Tauri + React, web app puro; chat streaming + fontes) ✅ |
 | 4 | Voz — TTS (Piper): síntese no Host, áudio via WS, toca no cliente ✅ |
-| 5 | Avatar |
+| 5 | Avatar (frontend; expressão por status + lip-sync por amplitude) ✅ |
 | 6 | STT (microfone → primeiro `StreamingSensor` concreto) |
 | 7 | Loop contínuo (multimodal-aware) |
 | **8** | **Visão / Multimodalidade** (webcam, captura de tela, OCR, LLM de visão) — habilitada pela camada de sensores |
