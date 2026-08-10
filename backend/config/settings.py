@@ -164,6 +164,14 @@ class Settings(BaseSettings):
         ],
         description="Frases-ponte faladas durante a busca (escolhidas ao acaso).",
     )
+    tts_filler_interval: float = Field(
+        default=5.0,
+        gt=0,
+        description=(
+            "Intervalo (s) para repetir uma frase-ponte enquanto a resposta não "
+            "começa (esperas mais longas de busca/LLM não ficam em silêncio)."
+        ),
+    )
 
     # --- STT (transcrição de voz — Fase 6) --------------------------------
     stt_enabled: bool = Field(

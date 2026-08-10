@@ -8,6 +8,8 @@ Degrada graciosamente: se a busca falhar, responde sem contexto.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import random
 from collections.abc import Sequence
 from typing import AsyncIterator
@@ -31,6 +33,9 @@ from backend.utils.errors import LLMError, RagError, TTSError
 from backend.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+#: Sentinela que marca o fim do fluxo de eventos do produtor.
+_DONE = object()
 
 
 class ConversationService:
@@ -63,16 +68,80 @@ class ConversationService:
 
         ``history`` traz os turnos anteriores (user/assistant) da mesma conversa,
         dando contexto multi-turno ao LLM; vazio = turno isolado (sem memória).
+
+        O turno real roda num produtor; este consumidor repassa os eventos e, nas
+        esperas antes de a resposta começar (busca e/ou "pensar" do LLM), preenche
+        o silêncio com frases-ponte faladas: uma imediata ao entrar na busca e
+        outras a cada ``tts_filler_interval`` segundos — conversa menos robótica.
+        """
+        queue: asyncio.Queue[object] = asyncio.Queue()
+        producer = asyncio.create_task(self._produce(query, model, history, queue))
+        interval = self._settings.tts_filler_interval
+        responding = False
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=interval)
+                except asyncio.TimeoutError:
+                    # Espera longa e ainda sem resposta: fala outra frase-ponte.
+                    if not responding:
+                        filler = await self._make_filler()
+                        if filler is not None:
+                            yield filler
+                    continue
+                if item is _DONE:
+                    break
+                event: ConversationEvent = item  # type: ignore[assignment]
+                yield event
+                if isinstance(event, StatusChanged):
+                    if event.state == "responding":
+                        responding = True
+                    elif event.state == "searching":
+                        # Frase-ponte imediata ao começar a busca.
+                        filler = await self._make_filler()
+                        if filler is not None:
+                            yield filler
+        finally:
+            if not producer.done():
+                producer.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await producer
+
+    async def _produce(
+        self,
+        query: str,
+        model: str | None,
+        history: Sequence[ChatMessage],
+        queue: asyncio.Queue[object],
+    ) -> None:
+        """Roda o turno de domínio e empilha os eventos na fila para o consumidor."""
+        try:
+            async for event in self._turn_events(query, model=model, history=history):
+                await queue.put(event)
+        except Exception as exc:  # noqa: BLE001 - isola falha inesperada do produtor
+            logger.error("conversation_produce_error", error=str(exc))
+        finally:
+            await queue.put(_DONE)
+
+    async def _turn_events(
+        self,
+        query: str,
+        *,
+        model: str | None,
+        history: Sequence[ChatMessage],
+    ) -> AsyncIterator[ConversationEvent]:
+        """Eventos de domínio de um turno (RAG + LLM + voz), sem frases-ponte.
+
+        Observação: nada de `yield` em bloco `finally`. Se o gerador for fechado no
+        meio (cancelamento do produtor), o Python lança GeneratorExit no ponto do
+        yield; emitir durante a limpeza geraria "async generator ignored
+        GeneratorExit". O estado "idle" é emitido nos caminhos normais/erro.
         """
         yield StatusChanged(state="thinking")
 
         results = []
         if self._settings.rag_enabled:
             yield StatusChanged(state="searching")
-            # Fala uma frase-ponte enquanto busca, para não haver silêncio.
-            filler = await self._make_filler()
-            if filler is not None:
-                yield filler
             try:
                 results = await self._rag.retrieve(query)
                 yield SourcesGathered(
@@ -85,11 +154,6 @@ class ConversationService:
 
         messages = self._rag.build_messages(query, results, history)
 
-        # Observação: nada de `yield` em bloco `finally`. Se o consumidor fechar
-        # este gerador no meio do streaming (cliente desconectou), o Python lança
-        # GeneratorExit no ponto do yield; tentar emitir durante a limpeza gera
-        # "async generator ignored GeneratorExit". O estado "idle" é emitido nos
-        # caminhos normais/erro abaixo, nunca em finally.
         answer_parts: list[str] = []
         try:
             responding = False

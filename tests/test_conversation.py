@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+
+from backend.brain.conversation import ConversationService
+from backend.config.settings import Settings
+from backend.rag.service import RagService
 from backend.brain.events import (
     AudioReady,
     GenerationFailed,
@@ -91,6 +96,35 @@ async def test_run_speaks_filler_before_searching_when_enabled() -> None:
         i for i, e in enumerate(events) if isinstance(e, SourcesGathered)
     )
     assert idx_filler < idx_sources  # a ponte vem antes das fontes
+
+
+class _SlowSearch(FakeSearchProvider):
+    """Busca falsa que demora, para exercitar as frases-ponte periódicas."""
+
+    async def search(self, query: str, max_results: int):
+        await asyncio.sleep(0.25)
+        return await super().search(query, max_results)
+
+
+async def test_run_repeats_fillers_during_slow_search() -> None:
+    """Busca demorada gera várias frases-ponte (não só uma) antes das fontes."""
+    settings = Settings(
+        _env_file=None,
+        tts_enabled=True,
+        tts_fillers_enabled=True,
+        tts_filler_interval=0.05,
+    )
+    rag = RagService(_SlowSearch(), settings)
+    service = ConversationService(
+        FakeLLMProvider(tokens=["ok"]), rag, settings, tts=FakeTTSProvider()
+    )
+    events = [e async for e in service.run("pergunta")]
+
+    idx_sources = next(
+        i for i, e in enumerate(events) if isinstance(e, SourcesGathered)
+    )
+    fillers_before = [e for e in events[:idx_sources] if isinstance(e, AudioReady)]
+    assert len(fillers_before) >= 2  # imediata + periódicas durante a espera
 
 
 def test_filler_phrase_avoids_immediate_repeat() -> None:
