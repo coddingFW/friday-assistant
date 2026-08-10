@@ -8,6 +8,7 @@ Degrada graciosamente: se a busca falhar, responde sem contexto.
 
 from __future__ import annotations
 
+import random
 from collections.abc import Sequence
 from typing import AsyncIterator
 
@@ -24,7 +25,7 @@ from backend.brain.events import (
 from backend.brain.ports import ChatMessage, LLMProvider
 from backend.config.settings import Settings
 from backend.rag.service import RagService
-from backend.tts.ports import TTSProvider
+from backend.tts.ports import SpeechAudio, TTSProvider
 from backend.tts.text import to_speech_text
 from backend.utils.errors import LLMError, RagError, TTSError
 from backend.utils.logging import get_logger
@@ -46,6 +47,8 @@ class ConversationService:
         self._rag = rag
         self._settings = settings
         self._tts = tts
+        # Cache de frases-ponte já sintetizadas (fala durante a busca).
+        self._filler_cache: dict[str, SpeechAudio] = {}
 
     async def run(
         self,
@@ -64,6 +67,10 @@ class ConversationService:
         results = []
         if self._settings.rag_enabled:
             yield StatusChanged(state="searching")
+            # Fala uma frase-ponte enquanto busca, para não haver silêncio.
+            filler = await self._make_filler()
+            if filler is not None:
+                yield filler
             try:
                 results = await self._rag.retrieve(query)
                 yield SourcesGathered(
@@ -102,6 +109,28 @@ class ConversationService:
 
         yield TurnCompleted()
         yield StatusChanged(state="idle")
+
+    async def _make_filler(self) -> AudioReady | None:
+        """Sintetiza (e cacheia) uma frase-ponte curta para tocar durante a busca.
+
+        Degrada graciosamente: sem TTS, desativado ou em caso de falha, apenas
+        omite a frase — a busca segue normalmente.
+        """
+        settings = self._settings
+        if not (settings.tts_enabled and self._tts is not None):
+            return None
+        if not settings.tts_fillers_enabled or not settings.tts_filler_phrases:
+            return None
+        phrase = random.choice(settings.tts_filler_phrases)
+        speech = self._filler_cache.get(phrase)
+        if speech is None:
+            try:
+                speech = await self._tts.synthesize(phrase)
+            except TTSError as exc:
+                logger.warning("conversation_filler_tts_error", error=str(exc))
+                return None
+            self._filler_cache[phrase] = speech
+        return AudioReady(data=speech.data, mime=speech.mime)
 
     async def _synthesize(self, answer: str) -> AudioReady | None:
         """Sintetiza a voz da resposta, se o TTS estiver ativo.

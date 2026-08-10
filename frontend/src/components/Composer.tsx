@@ -10,6 +10,8 @@ interface ComposerProps {
   onToggleListen: () => void;
   autoSend: boolean;
   onToggleAutoSend: (value: boolean) => void;
+  speaking: boolean;
+  onStopSpeaking: () => void;
 }
 
 export function Composer({
@@ -22,6 +24,8 @@ export function Composer({
   onToggleListen,
   autoSend,
   onToggleAutoSend,
+  speaking,
+  onStopSpeaking,
 }: ComposerProps) {
   const submit = () => {
     const text = value.trim();
@@ -65,14 +69,25 @@ export function Composer({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
         />
-        <button
-          className="composer__send"
-          onClick={submit}
-          disabled={disabled || !value.trim()}
-          title="Enviar (Enter)"
-        >
-          {busy ? "…" : "Enviar"}
-        </button>
+        {speaking ? (
+          <button
+            type="button"
+            className="composer__stop"
+            onClick={onStopSpeaking}
+            title="Interromper a fala da Friday"
+          >
+            ⏹ Parar
+          </button>
+        ) : (
+          <button
+            className="composer__send"
+            onClick={submit}
+            disabled={disabled || !value.trim()}
+            title="Enviar (Enter)"
+          >
+            {busy ? "…" : "Enviar"}
+          </button>
+        )}
       </div>
       <label className="composer__autosend" title="Enviar a fala automaticamente ao terminar">
         <input

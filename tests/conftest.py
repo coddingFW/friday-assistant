@@ -101,9 +101,19 @@ def build_conversation_service(
     rag_enabled: bool = True,
     tts: FakeTTSProvider | None = None,
     tts_enabled: bool = False,
+    tts_fillers_enabled: bool = False,
 ) -> ConversationService:
-    """Monta um ConversationService com dependências falsas para testes."""
-    settings = Settings(_env_file=None, rag_enabled=rag_enabled, tts_enabled=tts_enabled)
+    """Monta um ConversationService com dependências falsas para testes.
+
+    ``tts_fillers_enabled`` fica desligado por padrão para que os testes de áudio
+    contem apenas a fala da resposta; ligue-o nos testes específicos da frase-ponte.
+    """
+    settings = Settings(
+        _env_file=None,
+        rag_enabled=rag_enabled,
+        tts_enabled=tts_enabled,
+        tts_fillers_enabled=tts_fillers_enabled,
+    )
     rag = RagService(search or FakeSearchProvider(), settings)
     return ConversationService(llm or FakeLLMProvider(), rag, settings, tts=tts)
 

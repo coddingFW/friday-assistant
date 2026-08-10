@@ -8,6 +8,17 @@ class AudioPlayer {
   private data: Uint8Array<ArrayBuffer> | null = null;
   private current: HTMLAudioElement | null = null;
   private playing = false;
+  private listeners = new Set<() => void>();
+
+  /** Assina mudanças de "está falando"; devolve a função para cancelar. */
+  onChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private emit(): void {
+    this.listeners.forEach((l) => l());
+  }
 
   private ensure(): void {
     if (this.ctx) return;
@@ -42,13 +53,16 @@ class AudioPlayer {
     source.connect(this.analyser!);
     audio.onended = () => {
       this.playing = false;
+      this.emit();
     };
     this.current = audio;
     this.playing = true;
+    this.emit();
     try {
       await audio.play();
     } catch {
       this.playing = false; // autoplay bloqueado; botão "Ouvir" tenta de novo
+      this.emit();
     }
   }
 
@@ -57,7 +71,10 @@ class AudioPlayer {
       this.current.pause();
       this.current = null;
     }
-    this.playing = false;
+    if (this.playing) {
+      this.playing = false;
+      this.emit();
+    }
   }
 
   get speaking(): boolean {

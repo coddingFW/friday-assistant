@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from backend.brain.events import (
+    AudioReady,
     GenerationFailed,
     SourcesGathered,
     StatusChanged,
@@ -14,6 +15,7 @@ from backend.utils.errors import LLMError
 from tests.conftest import (
     FakeLLMProvider,
     FakeSearchProvider,
+    FakeTTSProvider,
     build_conversation_service,
 )
 
@@ -69,6 +71,26 @@ async def test_run_threads_history_into_llm_messages() -> None:
     assert sent[0].role == "system"
     assert sent[1:3] == history
     assert sent[-1] == ChatMessage(role="user", content="qual o nome dele?")
+
+
+async def test_run_speaks_filler_before_searching_when_enabled() -> None:
+    """Com TTS + fillers, uma fala-ponte é emitida antes de buscar (sem silêncio)."""
+    tts = FakeTTSProvider()
+    service = build_conversation_service(
+        llm=FakeLLMProvider(tokens=["oi"]),
+        tts=tts,
+        tts_enabled=True,
+        tts_fillers_enabled=True,
+    )
+    events = await _collect(service, "pergunta")
+
+    audios = [e for e in events if isinstance(e, AudioReady)]
+    assert len(audios) == 2  # frase-ponte (busca) + resposta
+    idx_filler = events.index(audios[0])
+    idx_sources = next(
+        i for i, e in enumerate(events) if isinstance(e, SourcesGathered)
+    )
+    assert idx_filler < idx_sources  # a ponte vem antes das fontes
 
 
 class _FailingLLM(FakeLLMProvider):

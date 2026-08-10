@@ -136,6 +136,22 @@ class Settings(BaseSettings):
     tts_timeout: float = Field(
         default=60.0, gt=0, description="Timeout (s) da síntese de voz."
     )
+    tts_fillers_enabled: bool = Field(
+        default=True,
+        description=(
+            "Se True, a Friday fala uma frase-ponte curta enquanto busca (RAG), "
+            "para não ficar em silêncio — conversa mais natural."
+        ),
+    )
+    tts_filler_phrases: list[str] = Field(
+        default_factory=lambda: [
+            "Deixa eu ver isso.",
+            "Só um instante.",
+            "Deixa eu procurar aqui.",
+            "Um momento, já respondo.",
+        ],
+        description="Frases-ponte faladas durante a busca (escolhidas ao acaso).",
+    )
 
     # --- STT (transcrição de voz — Fase 6) --------------------------------
     stt_enabled: bool = Field(

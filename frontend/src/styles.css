@@ -452,6 +452,19 @@ body {
   background: #e5484d;
   animation: pulse 1.1s ease-in-out infinite;
 }
+.composer__stop {
+  padding: 11px 18px;
+  border-radius: 12px;
+  border: 1px solid #e5484d;
+  background: transparent;
+  color: #e5484d;
+  font-weight: 600;
+  cursor: pointer;
+}
+.composer__stop:hover {
+  background: #e5484d;
+  color: #fff;
+}
 .composer__input {
   flex: 1;
   resize: none;

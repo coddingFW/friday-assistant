@@ -32,6 +32,8 @@ export interface UseChat {
   toggleListening: () => void;
   autoSend: boolean;
   setAutoSend: (value: boolean) => void;
+  speaking: boolean;
+  stopSpeaking: () => void;
 }
 
 export function useChat(): UseChat {
@@ -41,8 +43,14 @@ export function useChat(): UseChat {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [autoSend, setAutoSendState] = useState<boolean>(readAutoSend);
   const socketRef = useRef<ChatSocket | null>(null);
+
+  // Reflete no React quando a Friday começa/para de falar (para o botão de parar).
+  useEffect(() => audioPlayer.onChange(() => setSpeaking(audioPlayer.speaking)), []);
+
+  const stopSpeaking = useCallback(() => audioPlayer.stop(), []);
 
   // Ref para ler a preferência atual dentro do handler sem reconectar o socket.
   const autoSendRef = useRef(autoSend);
@@ -77,6 +85,8 @@ export function useChat(): UseChat {
   const send = useCallback((text: string) => {
     const content = text.trim();
     if (!content || !socketRef.current?.connected) return;
+    // Barge-in: uma nova mensagem interrompe a fala em andamento.
+    audioPlayer.stop();
     // Destrava o áudio no gesto do usuário (a fala chega segundos depois).
     void audioPlayer.unlock();
     setError(null);
@@ -97,8 +107,9 @@ export function useChat(): UseChat {
       switch (event.type) {
         case "status":
           setStatus(event.state);
+          // "listening" liga o indicador; NÃO o desligamos no "idle" do turno —
+          // o microfone segue ativo (o fim de um turno não é o fim da escuta).
           if (event.state === "listening") setListening(true);
-          else if (event.state === "idle") setListening(false);
           break;
         case "sources":
           patchAssistant((m) => ({ ...m, sources: event.sources }));
@@ -164,6 +175,8 @@ export function useChat(): UseChat {
       }
       setListening(false);
     } else {
+      // Barge-in: começar a falar interrompe a fala atual da Friday.
+      audioPlayer.stop();
       // Gesto do usuário: destrava o áudio para a resposta falada depois.
       void audioPlayer.unlock();
       setError(null);
@@ -187,5 +200,7 @@ export function useChat(): UseChat {
     toggleListening,
     autoSend,
     setAutoSend,
+    speaking,
+    stopSpeaking,
   };
 }

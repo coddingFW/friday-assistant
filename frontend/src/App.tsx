@@ -20,6 +20,8 @@ export default function App() {
     toggleListening,
     autoSend,
     setAutoSend,
+    speaking,
+    stopSpeaking,
   } = useChat();
   const [health, setHealth] = useState<HealthResponse | null>(null);
 
@@ -59,6 +61,8 @@ export default function App() {
           onToggleListen={toggleListening}
           autoSend={autoSend}
           onToggleAutoSend={setAutoSend}
+          speaking={speaking}
+          onStopSpeaking={stopSpeaking}
         />
       </footer>
     </div>
