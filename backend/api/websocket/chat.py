@@ -41,6 +41,8 @@ from backend.brain.events import (
     TokenGenerated,
     TurnCompleted,
 )
+from backend.brain.ports import ChatMessage
+from backend.config.settings import get_settings
 from backend.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -64,6 +66,10 @@ async def chat_socket(websocket: WebSocket) -> None:
         return
 
     logger.info("ws_chat_connected")
+    # Memória de curto prazo da conversa: vive na conexão (o ConversationService
+    # é um singleton compartilhado e permanece stateless). Persistência entre
+    # sessões é a Fase 9.
+    history: list[ChatMessage] = []
     try:
         while True:
             raw = await websocket.receive_json()
@@ -75,30 +81,59 @@ async def chat_socket(websocket: WebSocket) -> None:
                 )
                 continue
 
-            await _handle_turn(websocket, service, message)
+            await _handle_turn(websocket, service, message, history)
     except WebSocketDisconnect:
         logger.info("ws_chat_disconnected")
 
 
 async def _handle_turn(
-    websocket: WebSocket, service: ConversationService, message: UserMessage
+    websocket: WebSocket,
+    service: ConversationService,
+    message: UserMessage,
+    history: list[ChatMessage],
 ) -> None:
     """Consome os eventos de domínio de um turno e os envia ao cliente.
 
-    Resiliente à desconexão do cliente no meio do streaming: se o envio falhar
-    (socket fechado), aborta o turno e fecha o gerador — o que propaga o
-    cancelamento até o stream do LLM, evitando geração órfã.
+    Acumula a resposta do assistente para, ao final de um turno bem-sucedido,
+    memorizá-la em ``history`` (contexto do próximo turno). Resiliente à
+    desconexão do cliente no meio do streaming: se o envio falhar (socket
+    fechado), aborta o turno e fecha o gerador — o que propaga o cancelamento
+    até o stream do LLM, evitando geração órfã e sem gravar resposta parcial.
     """
-    events = service.run(message.content, model=message.model)
+    events = service.run(message.content, model=message.model, history=history)
+    answer_parts: list[str] = []
+    failed = False
     try:
         async for event in events:
+            if isinstance(event, TokenGenerated):
+                answer_parts.append(event.text)
+            elif isinstance(event, GenerationFailed):
+                failed = True
             payload = _to_protocol(event)
             if payload is not None:
                 await websocket.send_json(payload)
     except (WebSocketDisconnect, RuntimeError):
         logger.info("ws_chat_turn_aborted")
+        return
     finally:
         await events.aclose()
+
+    answer = "".join(answer_parts)
+    if not failed and answer:
+        _remember(history, message.content, answer)
+
+
+def _remember(history: list[ChatMessage], user_text: str, answer: str) -> None:
+    """Adiciona o par (usuário, assistente) ao histórico, aparando o excedente.
+
+    Mantém apenas as últimas ``history_max_messages`` mensagens para limitar o
+    tamanho do prompt; ``0`` desativa a memória de conversa.
+    """
+    history.append(ChatMessage(role="user", content=user_text))
+    history.append(ChatMessage(role="assistant", content=answer))
+    limit = get_settings().history_max_messages
+    if len(history) > limit:
+        del history[: len(history) - limit]
 
 
 def _to_protocol(event: object) -> dict | None:

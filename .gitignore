@@ -8,7 +8,23 @@ __pycache__/
 # Configuração local (nunca versionar segredos/hosts)
 .env
 
-# Modelos e artefatos locais (baixados sob demanda)
-models/
+# Modelos locais do backend (vozes Piper etc.) — só a pasta models/ da RAIZ.
+# Ancorado com "/" para NÃO ignorar assets do frontend (frontend/public/models/).
+/models/
 *.onnx
 *.gguf
+
+# Frontend (Node / Vite / Tauri) — dependências e artefatos de build
+node_modules/
+dist/
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+
+# Modelo 3D abandonado (deformado) — mantido só localmente, grande demais para
+# versionar. O modelo em uso é frontend/public/models/facecap.glb. Se um dia for
+# re-exportado corrigido, versione via Git LFS.
+frontend/public/models/friday.glb
+
+# Sistema
+.DS_Store
+Thumbs.db

@@ -9,6 +9,7 @@ from backend.brain.events import (
     TokenGenerated,
     TurnCompleted,
 )
+from backend.brain.ports import ChatMessage
 from backend.utils.errors import LLMError
 from tests.conftest import (
     FakeLLMProvider,
@@ -51,6 +52,23 @@ async def test_run_degrades_when_search_fails() -> None:
     events = await _collect(service, "pergunta")
     assert not any(isinstance(e, SourcesGathered) for e in events)
     assert any(isinstance(e, TurnCompleted) for e in events)
+
+
+async def test_run_threads_history_into_llm_messages() -> None:
+    """O histórico deve entrar nas mensagens do LLM, antes da pergunta atual."""
+    llm = FakeLLMProvider(tokens=["ok"])
+    service = build_conversation_service(llm=llm, rag_enabled=False)
+    history = [
+        ChatMessage(role="user", content="quem foi Viktor Frankl?"),
+        ChatMessage(role="assistant", content="Um psiquiatra e filósofo austríaco."),
+    ]
+    _ = [e async for e in service.run("qual o nome dele?", history=history)]
+
+    sent = llm.calls[-1]
+    # system prompt + 2 de histórico + pergunta atual, nesta ordem.
+    assert sent[0].role == "system"
+    assert sent[1:3] == history
+    assert sent[-1] == ChatMessage(role="user", content="qual o nome dele?")
 
 
 class _FailingLLM(FakeLLMProvider):

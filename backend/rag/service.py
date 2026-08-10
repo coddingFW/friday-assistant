@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from backend.brain.ports import ChatMessage
 from backend.config.settings import Settings
 from backend.rag.context import build_context
@@ -20,13 +22,18 @@ class RagService:
         return await self._search.search(query, self._settings.rag_max_results)
 
     def build_messages(
-        self, query: str, results: list[SearchResult]
+        self,
+        query: str,
+        results: list[SearchResult],
+        history: Sequence[ChatMessage] = (),
     ) -> list[ChatMessage]:
-        """Monta as mensagens: prompt de sistema + contexto (se houver) + usuário.
+        """Monta as mensagens: sistema + histórico + contexto (se houver) + usuário.
 
         Args:
             query: Pergunta do usuário.
             results: Resultados de busca já recuperados (pode ser vazio).
+            history: Turnos anteriores (user/assistant) em ordem cronológica, para
+                dar contexto multi-turno ao LLM. Vazio = conversa sem memória.
 
         Returns:
             Lista de :class:`ChatMessage` pronta para o provedor de LLM.
@@ -34,6 +41,7 @@ class RagService:
         messages = [
             ChatMessage(role="system", content=self._settings.rag_system_prompt)
         ]
+        messages.extend(history)
         context = build_context(results)
         if context:
             messages.append(ChatMessage(role="system", content=context))

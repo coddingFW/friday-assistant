@@ -8,6 +8,7 @@ Degrada graciosamente: se a busca falhar, responde sem contexto.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import AsyncIterator
 
 from backend.brain.events import (
@@ -20,7 +21,7 @@ from backend.brain.events import (
     TokenGenerated,
     TurnCompleted,
 )
-from backend.brain.ports import LLMProvider
+from backend.brain.ports import ChatMessage, LLMProvider
 from backend.config.settings import Settings
 from backend.rag.service import RagService
 from backend.tts.ports import TTSProvider
@@ -47,9 +48,17 @@ class ConversationService:
         self._tts = tts
 
     async def run(
-        self, query: str, *, model: str | None = None
+        self,
+        query: str,
+        *,
+        model: str | None = None,
+        history: Sequence[ChatMessage] = (),
     ) -> AsyncIterator[ConversationEvent]:
-        """Processa um turno e emite eventos de domínio em streaming."""
+        """Processa um turno e emite eventos de domínio em streaming.
+
+        ``history`` traz os turnos anteriores (user/assistant) da mesma conversa,
+        dando contexto multi-turno ao LLM; vazio = turno isolado (sem memória).
+        """
         yield StatusChanged(state="thinking")
 
         results = []
@@ -65,7 +74,7 @@ class ConversationService:
                 logger.warning("rag_retrieve_failed", error=str(exc))
                 results = []
 
-        messages = self._rag.build_messages(query, results)
+        messages = self._rag.build_messages(query, results, history)
 
         # Observação: nada de `yield` em bloco `finally`. Se o consumidor fechar
         # este gerador no meio do streaming (cliente desconectou), o Python lança

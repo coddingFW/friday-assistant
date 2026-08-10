@@ -92,13 +92,29 @@ class Settings(BaseSettings):
     )
     rag_system_prompt: str = Field(
         default=(
-            "Você é Friday, uma assistente local e prestativa. Responda em "
-            "português do Brasil, de forma clara e concisa. Quando um contexto de "
-            "busca for fornecido, use-o para embasar a resposta e cite as fontes "
-            "relevantes; se o contexto não ajudar, responda com seu próprio "
-            "conhecimento e diga que não encontrou fontes recentes."
+            "Você é Friday, uma assistente local, direta e prestativa. Responda "
+            "sempre em português do Brasil, de forma clara. Atenda exatamente ao "
+            "que for pedido: se pedirem código, entregue código completo e "
+            "funcional, sem se recusar nem responder de forma genérica. "
+            "Um contexto de busca pode (ou não) ser fornecido: use-o apenas "
+            "quando for realmente relevante para a pergunta e, nesse caso, cite "
+            "as fontes que usar. Se o contexto não ajudar, ou se a pergunta não "
+            "depender de informação da web (por exemplo, pedidos de código, "
+            "tarefas criativas ou conhecimento geral), ignore-o e responda com "
+            "seu próprio conhecimento — sem mencionar que não encontrou fontes."
         ),
         description="Prompt de sistema base da assistente.",
+    )
+
+    # --- Conversa (memória de curto prazo) --------------------------------
+    history_max_messages: int = Field(
+        default=12,
+        ge=0,
+        description=(
+            "Máximo de mensagens (user+assistant) de histórico mantidas por "
+            "conexão para dar contexto multi-turno ao LLM. 0 desativa a memória "
+            "de conversa; a memória de longo prazo (persistente) é a Fase 9."
+        ),
     )
 
     # --- TTS (síntese de voz) ---------------------------------------------

@@ -1,0 +1,17 @@
+# Normaliza fins de linha: LF no repositório, em qualquer plataforma
+# (o projeto viaja para Windows/macOS/Linux).
+* text=auto eol=lf
+
+# Binários — não normalizar nem tentar diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.glb binary
+*.wasm binary
+*.onnx binary
+*.gguf binary
+*.wav binary
+*.exe binary

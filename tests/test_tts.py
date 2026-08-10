@@ -31,6 +31,30 @@ def test_to_speech_text_strips_symbols_and_markdown() -> None:
     assert "o site" in spoken  # rótulo do link preservado
 
 
+def test_to_speech_text_drops_fenced_code_blocks() -> None:
+    """Blocos de código não devem ser lidos linha a linha; viram uma pista curta."""
+    raw = (
+        "Aqui está um exemplo:\n"
+        "```html\n<!DOCTYPE html>\n<body><h1>Loja</h1></body>\n```\n"
+        "E o estilo:\n```css\nbody { margin: 0; }\n```\n"
+        "Adapte às suas necessidades."
+    )
+    spoken = to_speech_text(raw)
+    for leaked in ("DOCTYPE", "body", "margin", "<", "{"):
+        assert leaked not in spoken
+    assert "Aqui está um exemplo" in spoken
+    assert "Adapte às suas necessidades" in spoken
+    assert "Código exibido na tela" in spoken
+
+
+def test_to_speech_text_drops_unterminated_code_block() -> None:
+    """Bloco de código não fechado (modelo cortado) não deve vazar na fala."""
+    raw = "Segue o código:\n```python\nprint('oi')\nfor i in range(10):"
+    spoken = to_speech_text(raw)
+    assert "print" not in spoken and "range" not in spoken
+    assert "Segue o código" in spoken
+
+
 def test_to_speech_text_keeps_sentence_punctuation() -> None:
     """Pontuação de frase é preservada; não sobra espaço antes dela."""
     assert to_speech_text("Olá, mundo! Tudo bem?") == "Olá, mundo! Tudo bem?"

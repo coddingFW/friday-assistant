@@ -11,6 +11,7 @@ import asyncio
 import contextlib
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -73,38 +74,40 @@ class PiperTTSProvider:
         return SpeechAudio(data=audio, mime="audio/wav")
 
     async def _run_piper(self, text: str, out_path: str) -> bytes:
-        """Executa o Piper e devolve os bytes do WAV gerado."""
+        """Executa o Piper (em worker thread) e devolve os bytes do WAV gerado.
+
+        Usa ``subprocess.run`` num thread (via :func:`asyncio.to_thread`) em vez
+        de ``asyncio.create_subprocess_exec``: no Windows, o Uvicorn roda sobre o
+        SelectorEventLoop, que **não** implementa criação de subprocessos e
+        levantaria ``NotImplementedError`` (subclasse de ``RuntimeError``). Rodar
+        num thread torna a síntese independente do event loop do servidor.
+        """
+        return await asyncio.to_thread(self._run_piper_blocking, text, out_path)
+
+    def _run_piper_blocking(self, text: str, out_path: str) -> bytes:
+        """Chamada síncrona (bloqueante) ao Piper — executada num worker thread."""
         # O Piper é um programa Python; no Windows ele leria o stdin em cp1252,
         # corrompendo acentos (UTF-8 "é" -> "Ã©", lido como "A til"). Forçamos
         # modo UTF-8 no subprocesso para o texto chegar íntegro.
         env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
         try:
-            proc = await asyncio.create_subprocess_exec(
-                self._binary,
-                "-m",
-                self._voice,
-                "-f",
-                out_path,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE,
+            proc = subprocess.run(
+                [self._binary, "-m", self._voice, "-f", out_path],
+                input=text.encode("utf-8"),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                timeout=self._timeout,
                 env=env,
             )
         except FileNotFoundError as exc:
             raise TTSUnavailableError(
                 f"Executável Piper não encontrado: '{self._binary}'."
             ) from exc
-
-        try:
-            _, stderr = await asyncio.wait_for(
-                proc.communicate(text.encode("utf-8")), timeout=self._timeout
-            )
-        except asyncio.TimeoutError as exc:
-            proc.kill()
+        except subprocess.TimeoutExpired as exc:
             raise TTSError("Síntese de voz excedeu o tempo limite.") from exc
 
         if proc.returncode != 0:
-            detail = stderr.decode("utf-8", "replace")[:200]
+            detail = proc.stderr.decode("utf-8", "replace")[:200]
             raise TTSError(f"Piper falhou (código {proc.returncode}): {detail}")
 
         return Path(out_path).read_bytes()
