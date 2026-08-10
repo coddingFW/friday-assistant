@@ -47,8 +47,10 @@ class ConversationService:
         self._rag = rag
         self._settings = settings
         self._tts = tts
-        # Cache de frases-ponte já sintetizadas (fala durante a busca).
+        # Cache de frases-ponte já sintetizadas (fala durante a busca) e a última
+        # usada, para não repetir a mesma duas vezes seguidas (menos robótico).
         self._filler_cache: dict[str, SpeechAudio] = {}
+        self._last_filler: str | None = None
 
     async def run(
         self,
@@ -121,7 +123,7 @@ class ConversationService:
             return None
         if not settings.tts_fillers_enabled or not settings.tts_filler_phrases:
             return None
-        phrase = random.choice(settings.tts_filler_phrases)
+        phrase = self._pick_filler_phrase(settings.tts_filler_phrases)
         speech = self._filler_cache.get(phrase)
         if speech is None:
             try:
@@ -131,6 +133,13 @@ class ConversationService:
                 return None
             self._filler_cache[phrase] = speech
         return AudioReady(data=speech.data, mime=speech.mime)
+
+    def _pick_filler_phrase(self, phrases: Sequence[str]) -> str:
+        """Escolhe uma frase-ponte ao acaso, evitando repetir a última usada."""
+        candidates = [p for p in phrases if p != self._last_filler] or list(phrases)
+        phrase = random.choice(candidates)
+        self._last_filler = phrase
+        return phrase
 
     async def _synthesize(self, answer: str) -> AudioReady | None:
         """Sintetiza a voz da resposta, se o TTS estiver ativo.

@@ -93,6 +93,18 @@ async def test_run_speaks_filler_before_searching_when_enabled() -> None:
     assert idx_filler < idx_sources  # a ponte vem antes das fontes
 
 
+def test_filler_phrase_avoids_immediate_repeat() -> None:
+    """A frase-ponte nunca repete a mesma duas vezes seguidas."""
+    service = build_conversation_service()
+    phrases = ["a", "b", "c"]
+    prev: str | None = None
+    for _ in range(50):
+        phrase = service._pick_filler_phrase(phrases)
+        assert phrase in phrases
+        assert phrase != prev
+        prev = phrase
+
+
 class _FailingLLM(FakeLLMProvider):
     async def stream_chat(self, messages, *, model=None):
         raise LLMError("ollama caiu")
