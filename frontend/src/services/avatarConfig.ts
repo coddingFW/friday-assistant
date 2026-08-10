@@ -44,7 +44,7 @@ export const OPTIONS = {
   facialHair: ["beardLight", "beardMedium", "beardMajestic", "moustacheFancy", "moustacheMagnum"],
   skinColor: ["57331f", "614335", "ae5d29", "d08b5b", "fd9841", "edb98a", "ffdbb4", "f8d25c"],
   hairColor: ["b58143", "2c1b18", "a55728", "724133", "4a312c", "d6b370", "c93305", "f59797", "ecdcbf", "e8e1e1"],
-  clothesColor: ["ff488e", "ff5c5c", "ffafb9", "65c9ff", "5199e4", "25557c", "a7ffc4", "b1e2ff", "929598", "3c4f5c", "262e33", "e6e6e6", "ffffff"],
+  clothesColor: ["ff4c77", "ff488e", "ff5c5c", "ffafb9", "65c9ff", "5199e4", "25557c", "a7ffc4", "b1e2ff", "929598", "3c4f5c", "262e33", "e6e6e6", "ffffff"],
 } as const;
 
 const KEY = "friday.avatar";
