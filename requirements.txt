@@ -9,3 +9,6 @@ httpx>=0.27
 structlog>=24.1
 ddgs>=6.0  # busca DuckDuckGo (sucessor mantido do pacote duckduckgo-search)
 piper-tts>=1.6  # síntese de voz local (traz onnxruntime); voz .onnx baixada à parte
+faster-whisper>=1.1  # STT local (Whisper via CTranslate2); modelo baixado à parte
+sounddevice>=0.5  # captura de microfone (PortAudio embarcado no wheel)
+numpy>=1.24  # processamento de áudio (VAD por energia, buffers PCM)

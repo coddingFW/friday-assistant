@@ -8,7 +8,19 @@ import { getHealth } from "./services/api";
 import type { HealthResponse } from "./types";
 
 export default function App() {
-  const { messages, status, connected, error, send } = useChat();
+  const {
+    messages,
+    status,
+    connected,
+    error,
+    send,
+    draft,
+    setDraft,
+    listening,
+    toggleListening,
+    autoSend,
+    setAutoSend,
+  } = useChat();
   const [health, setHealth] = useState<HealthResponse | null>(null);
 
   useEffect(() => {
@@ -34,7 +46,20 @@ export default function App() {
       </main>
       {error ? <div className="banner banner--error">{error}</div> : null}
       <footer className="app__footer">
-        <Composer onSend={send} disabled={!connected} busy={busy} />
+        <Composer
+          value={draft}
+          onChange={setDraft}
+          onSend={(text) => {
+            send(text);
+            setDraft("");
+          }}
+          disabled={!connected}
+          busy={busy}
+          listening={listening}
+          onToggleListen={toggleListening}
+          autoSend={autoSend}
+          onToggleAutoSend={setAutoSend}
+        />
       </footer>
     </div>
   );

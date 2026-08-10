@@ -23,9 +23,21 @@ class UserMessage(BaseModel):
     )
 
 
+class ListenStart(BaseModel):
+    """Pede para iniciar a escuta do microfone (STT)."""
+
+    type: Literal["listen_start"] = "listen_start"
+
+
+class ListenStop(BaseModel):
+    """Pede para encerrar a escuta do microfone (STT)."""
+
+    type: Literal["listen_stop"] = "listen_stop"
+
+
 # --- Servidor -> Cliente ----------------------------------------------------
 
-StatusState = Literal["thinking", "searching", "responding", "idle"]
+StatusState = Literal["thinking", "searching", "responding", "idle", "listening"]
 
 
 class StatusEvent(BaseModel):
@@ -62,6 +74,14 @@ class AudioEvent(BaseModel):
     type: Literal["audio"] = "audio"
     mime: str
     data: str  # base64
+
+
+class TranscriptEvent(BaseModel):
+    """Transcrição de uma fala captada pelo microfone (STT)."""
+
+    type: Literal["transcript"] = "transcript"
+    text: str
+    final: bool = True
 
 
 class DoneEvent(BaseModel):

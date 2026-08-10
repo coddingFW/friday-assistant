@@ -40,6 +40,16 @@ export class ChatSocket {
     this.ws!.send(JSON.stringify(message));
   }
 
+  startListening(): void {
+    if (!this.connected) throw new Error("WebSocket não conectado.");
+    this.ws!.send(JSON.stringify({ type: "listen_start" }));
+  }
+
+  stopListening(): void {
+    if (!this.connected) return;
+    this.ws!.send(JSON.stringify({ type: "listen_stop" }));
+  }
+
   close(): void {
     this.ws?.close();
     this.ws = null;

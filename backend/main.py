@@ -25,8 +25,13 @@ from backend.brain.factory import create_llm_provider
 from backend.config.settings import Settings, get_settings
 from backend.perception.manager import SensorManager
 from backend.perception.registry import SensorRegistry
+from backend.perception.sensors.microphone import (
+    MICROPHONE_DESCRIPTOR,
+    MicrophoneSensor,
+)
 from backend.rag.factory import create_search_provider
 from backend.rag.service import RagService
+from backend.stt.factory import create_stt_provider
 from backend.tts.factory import create_tts_provider
 from backend.utils.logging import configure_logging, get_logger
 
@@ -59,10 +64,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.llm_provider, rag_service, settings, tts=tts_provider
     )
 
-    # Camada de percepção multimodal. Registro vazio na Fase 1 — sensores
-    # concretos são registrados nas fases futuras, sem alterar este núcleo.
-    app.state.sensor_registry = SensorRegistry()
-    app.state.sensor_manager = SensorManager(app.state.sensor_registry)
+    # Camada de percepção multimodal. Na Fase 6 registramos o primeiro sensor
+    # concreto — o microfone — quando o STT está ativo.
+    registry = SensorRegistry()
+    app.state.stt_provider = None
+    if settings.stt_enabled:
+        app.state.stt_provider = create_stt_provider(settings)
+        registry.register(
+            MICROPHONE_DESCRIPTOR,
+            lambda: MicrophoneSensor(
+                sample_rate=settings.mic_sample_rate,
+                frame_ms=settings.mic_frame_ms,
+                silence_ms=settings.mic_silence_ms,
+                energy_threshold=settings.mic_energy_threshold,
+                min_speech_ms=settings.mic_min_speech_ms,
+                max_utterance_ms=settings.mic_max_utterance_ms,
+            ),
+        )
+    app.state.sensor_registry = registry
+    app.state.sensor_manager = SensorManager(registry)
 
     logger.info(
         "backend_startup",
@@ -73,6 +93,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         rag_provider=settings.rag_provider,
         tts_enabled=settings.tts_enabled,
         tts_provider=settings.tts_provider,
+        stt_enabled=settings.stt_enabled,
+        stt_model=settings.whisper_model if settings.stt_enabled else None,
         sensors=len(app.state.sensor_registry.available()),
         warmup=settings.ollama_warmup,
     )

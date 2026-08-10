@@ -28,3 +28,6 @@ frontend/public/models/friday.glb
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Log temporário do setup.ps1
+.setup_log.txt

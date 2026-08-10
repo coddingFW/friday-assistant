@@ -47,9 +47,21 @@ class TTSUnavailableError(TTSError):
     """O provedor de TTS (ex.: Piper) está inacessível ou mal configurado."""
 
 
+class STTError(FridayError):
+    """Falha genérica na camada de transcrição de voz (STT)."""
+
+
+class STTUnavailableError(STTError):
+    """O provedor de STT (ex.: Whisper) está inacessível ou mal configurado."""
+
+
 class SensorError(FridayError):
     """Falha genérica na camada de sensores (percepção multimodal)."""
 
 
 class SensorNotFoundError(SensorError):
     """Nenhum sensor registrado corresponde ao identificador solicitado."""
+
+
+class AudioCaptureError(SensorError):
+    """Falha ao abrir ou ler o dispositivo de áudio (microfone)."""

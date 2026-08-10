@@ -12,6 +12,7 @@ from fastapi import HTTPException, Request, status
 from backend.brain.conversation import ConversationService
 from backend.brain.ports import LLMProvider
 from backend.perception.manager import SensorManager
+from backend.stt.ports import STTProvider
 
 
 def get_llm_provider(request: Request) -> LLMProvider:
@@ -59,3 +60,18 @@ def get_sensor_manager(request: Request) -> SensorManager:
             detail="Gerenciador de sensores não inicializado.",
         )
     return manager
+
+
+def get_stt_provider(request: Request) -> STTProvider:
+    """Recupera o provedor de STT inicializado no lifespan.
+
+    Raises:
+        HTTPException: 503 se o STT estiver desativado ou não inicializado.
+    """
+    provider: STTProvider | None = getattr(request.app.state, "stt_provider", None)
+    if provider is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Provedor de STT não inicializado (STT desativado?).",
+        )
+    return provider

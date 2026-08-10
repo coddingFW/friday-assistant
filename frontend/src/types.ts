@@ -1,7 +1,12 @@
 // Contrato de protocolo espelhando backend/api/websocket/protocol.py.
 // Manter sincronizado com o backend (fonte da verdade do contrato).
 
-export type StatusState = "thinking" | "searching" | "responding" | "idle";
+export type StatusState =
+  | "thinking"
+  | "searching"
+  | "responding"
+  | "idle"
+  | "listening";
 
 export interface Source {
   title: string;
@@ -33,6 +38,11 @@ export interface ErrorEvent {
   type: "error";
   message: string;
 }
+export interface TranscriptEvent {
+  type: "transcript";
+  text: string;
+  final: boolean;
+}
 
 export type ServerEvent =
   | StatusEvent
@@ -40,13 +50,20 @@ export type ServerEvent =
   | TokenEvent
   | AudioEvent
   | DoneEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | TranscriptEvent;
 
 // Cliente -> Servidor (WebSocket)
 export interface UserMessage {
   type: "user_message";
   content: string;
   model?: string;
+}
+export interface ListenStart {
+  type: "listen_start";
+}
+export interface ListenStop {
+  type: "listen_stop";
 }
 
 // Modelo de UI

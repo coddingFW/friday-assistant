@@ -15,6 +15,7 @@ const LABELS: Record<StatusState, string> = {
   thinking: "Pensando…",
   searching: "Buscando…",
   responding: "Respondendo…",
+  listening: "Ouvindo…",
 };
 
 // Amplitude máxima do lip-sync no blendshape `jawOpen` (0..1).

@@ -5,6 +5,7 @@ const LABELS: Record<StatusState, string> = {
   thinking: "Pensando",
   searching: "Buscando",
   responding: "Respondendo",
+  listening: "Ouvindo",
 };
 
 export function StatusIndicator({ status }: { status: StatusState }) {

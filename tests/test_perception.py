@@ -130,11 +130,12 @@ def test_registry_rejects_duplicate() -> None:
 def test_api_lists_sensors() -> None:
     """O endpoint REST deve refletir os sensores registrados no Host."""
     app = create_app()
-    with TestClient(app) as tc:  # lifespan cria registry + manager
-        assert tc.get("/api/sensors").json() == {"sensors": []}  # vazio na Fase 1
+    with TestClient(app) as tc:  # lifespan registra o microfone (Fase 6)
+        ids = {s["id"] for s in tc.get("/api/sensors").json()["sensors"]}
+        assert "microphone" in ids  # STT ativo => microfone registrado
         app.state.sensor_registry.register(
             FakeStreamingSensor.descriptor, FakeStreamingSensor
         )
-        body = tc.get("/api/sensors").json()
-        assert body["sensors"][0]["id"] == "fake-stream"
-        assert body["sensors"][0]["modality"] == "signal"
+        by_id = {s["id"]: s for s in tc.get("/api/sensors").json()["sensors"]}
+        assert "fake-stream" in by_id
+        assert by_id["fake-stream"]["modality"] == "signal"

@@ -137,6 +137,65 @@ class Settings(BaseSettings):
         default=60.0, gt=0, description="Timeout (s) da síntese de voz."
     )
 
+    # --- STT (transcrição de voz — Fase 6) --------------------------------
+    stt_enabled: bool = Field(
+        default=True,
+        description=(
+            "Se True, registra o microfone e habilita a transcrição de voz "
+            "(Whisper). Desligue para não carregar o motor de STT."
+        ),
+    )
+    stt_provider: str = Field(
+        default="whisper", description="Provedor de STT (Strategy). Atual: whisper."
+    )
+    whisper_model: str = Field(
+        default="small",
+        description=(
+            "Modelo Whisper (tiny|base|small|medium|large-v3). 'small' equilibra "
+            "qualidade e CPU para PT-BR; baixado do HuggingFace na 1ª vez."
+        ),
+    )
+    whisper_device: str = Field(
+        default="cpu", description="Dispositivo do Whisper: cpu | cuda."
+    )
+    whisper_compute_type: str = Field(
+        default="int8",
+        description="Precisão do CTranslate2 (int8|int8_float16|float16|float32).",
+    )
+    whisper_language: str = Field(
+        default="pt",
+        description="Idioma assumido na transcrição ('' = detecção automática).",
+    )
+    whisper_beam_size: int = Field(
+        default=1, ge=1, le=10, description="Beam search (1 = mais rápido/greedy)."
+    )
+
+    # --- Microfone (endpointing por energia) ------------------------------
+    mic_sample_rate: int = Field(
+        default=16000, ge=8000, le=48000, description="Taxa de captura (Hz)."
+    )
+    mic_frame_ms: int = Field(
+        default=30, ge=10, le=60, description="Duração de cada frame de análise (ms)."
+    )
+    mic_silence_ms: int = Field(
+        default=800,
+        ge=100,
+        description="Silêncio (ms) após fala que encerra a utterance (endpoint).",
+    )
+    mic_energy_threshold: float = Field(
+        default=500.0,
+        ge=0,
+        description="Limiar de RMS (escala int16) acima do qual há fala.",
+    )
+    mic_min_speech_ms: int = Field(
+        default=300,
+        ge=0,
+        description="Fala mínima (ms) para valer como utterance (filtra ruídos).",
+    )
+    mic_max_utterance_ms: int = Field(
+        default=15000, ge=1000, description="Duração máxima de uma utterance (ms)."
+    )
+
     # --- Ollama (serviço local) -------------------------------------------
     ollama_base_url: str = Field(
         default="http://127.0.0.1:11434",

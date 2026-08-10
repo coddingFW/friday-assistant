@@ -1,20 +1,32 @@
-import { useState } from "react";
 import type { KeyboardEvent } from "react";
 
 interface ComposerProps {
+  value: string;
+  onChange: (text: string) => void;
   onSend: (text: string) => void;
   disabled: boolean;
   busy: boolean;
+  listening: boolean;
+  onToggleListen: () => void;
+  autoSend: boolean;
+  onToggleAutoSend: (value: boolean) => void;
 }
 
-export function Composer({ onSend, disabled, busy }: ComposerProps) {
-  const [text, setText] = useState("");
-
+export function Composer({
+  value,
+  onChange,
+  onSend,
+  disabled,
+  busy,
+  listening,
+  onToggleListen,
+  autoSend,
+  onToggleAutoSend,
+}: ComposerProps) {
   const submit = () => {
-    const value = text.trim();
-    if (!value || disabled) return;
-    onSend(value);
-    setText("");
+    const text = value.trim();
+    if (!text || disabled) return;
+    onSend(text);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -25,25 +37,51 @@ export function Composer({ onSend, disabled, busy }: ComposerProps) {
     }
   };
 
+  const placeholder = disabled
+    ? "Conectando ao backend…"
+    : listening
+      ? "Ouvindo… fale agora"
+      : "Escreva sua mensagem…";
+
   return (
     <div className="composer">
-      <textarea
-        className="composer__input"
-        placeholder={disabled ? "Conectando ao backend…" : "Escreva sua mensagem…"}
-        value={text}
-        disabled={disabled}
-        rows={1}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKeyDown}
-      />
-      <button
-        className="composer__send"
-        onClick={submit}
-        disabled={disabled || !text.trim()}
-        title="Enviar (Enter)"
-      >
-        {busy ? "…" : "Enviar"}
-      </button>
+      <div className="composer__row">
+        <button
+          type="button"
+          className={`composer__mic ${listening ? "composer__mic--on" : ""}`}
+          onClick={onToggleListen}
+          disabled={disabled}
+          title={listening ? "Parar de ouvir" : "Falar (microfone)"}
+          aria-pressed={listening}
+        >
+          {listening ? "■" : "🎤"}
+        </button>
+        <textarea
+          className="composer__input"
+          placeholder={placeholder}
+          value={value}
+          disabled={disabled}
+          rows={1}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+        />
+        <button
+          className="composer__send"
+          onClick={submit}
+          disabled={disabled || !value.trim()}
+          title="Enviar (Enter)"
+        >
+          {busy ? "…" : "Enviar"}
+        </button>
+      </div>
+      <label className="composer__autosend" title="Enviar a fala automaticamente ao terminar">
+        <input
+          type="checkbox"
+          checked={autoSend}
+          onChange={(e) => onToggleAutoSend(e.target.checked)}
+        />
+        Enviar a fala automaticamente
+      </label>
     </div>
   );
 }
