@@ -63,6 +63,7 @@ class ConversationService:
         *,
         model: str | None = None,
         history: Sequence[ChatMessage] = (),
+        images: Sequence[str] = (),
     ) -> AsyncIterator[ConversationEvent]:
         """Processa um turno e emite eventos de domínio em streaming.
 
@@ -75,7 +76,9 @@ class ConversationService:
         outras a cada ``tts_filler_interval`` segundos — conversa menos robótica.
         """
         queue: asyncio.Queue[object] = asyncio.Queue()
-        producer = asyncio.create_task(self._produce(query, model, history, queue))
+        producer = asyncio.create_task(
+            self._produce(query, model, history, images, queue)
+        )
         interval = self._settings.tts_filler_interval
         responding = False
         try:
@@ -112,11 +115,14 @@ class ConversationService:
         query: str,
         model: str | None,
         history: Sequence[ChatMessage],
+        images: Sequence[str],
         queue: asyncio.Queue[object],
     ) -> None:
         """Roda o turno de domínio e empilha os eventos na fila para o consumidor."""
         try:
-            async for event in self._turn_events(query, model=model, history=history):
+            async for event in self._turn_events(
+                query, model=model, history=history, images=images
+            ):
                 await queue.put(event)
         except Exception as exc:  # noqa: BLE001 - isola falha inesperada do produtor
             logger.error("conversation_produce_error", error=str(exc))
@@ -129,18 +135,20 @@ class ConversationService:
         *,
         model: str | None,
         history: Sequence[ChatMessage],
+        images: Sequence[str] = (),
     ) -> AsyncIterator[ConversationEvent]:
         """Eventos de domínio de um turno (RAG + LLM + voz), sem frases-ponte.
 
-        Observação: nada de `yield` em bloco `finally`. Se o gerador for fechado no
-        meio (cancelamento do produtor), o Python lança GeneratorExit no ponto do
-        yield; emitir durante a limpeza geraria "async generator ignored
-        GeneratorExit". O estado "idle" é emitido nos caminhos normais/erro.
+        Com imagem, o turno é multimodal: pula a busca web (a pergunta é sobre a
+        imagem) e usa o modelo de visão. Observação: nada de `yield` em bloco
+        `finally` (GeneratorExit na limpeza); o estado "idle" é emitido nos
+        caminhos normais/erro.
         """
         yield StatusChanged(state="thinking")
 
         results = []
-        if self._settings.rag_enabled:
+        # Visão não usa RAG: a pergunta é sobre a imagem, não sobre a web.
+        if self._settings.rag_enabled and not images:
             yield StatusChanged(state="searching")
             try:
                 results = await self._rag.retrieve(query)
@@ -152,12 +160,17 @@ class ConversationService:
                 logger.warning("rag_retrieve_failed", error=str(exc))
                 results = []
 
-        messages = self._rag.build_messages(query, results, history)
+        messages = self._rag.build_messages(query, results, history, images=images)
+
+        # Com imagem e sem modelo explícito, usa o modelo multimodal (visão).
+        target_model = model
+        if images and target_model is None:
+            target_model = self._settings.vision_model
 
         answer_parts: list[str] = []
         try:
             responding = False
-            async for token in self._llm.stream_chat(messages, model=model):
+            async for token in self._llm.stream_chat(messages, model=target_model):
                 if not responding:
                     yield StatusChanged(state="responding")
                     responding = True

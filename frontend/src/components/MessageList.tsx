@@ -31,6 +31,9 @@ export function MessageList({ messages }: MessageListProps) {
       {messages.map((m) => (
         <div key={m.id} className={`msg msg--${m.role}`}>
           <div className="msg__bubble">
+            {m.image ? (
+              <img className="msg__image" src={m.image} alt="imagem enviada" />
+            ) : null}
             {m.role === "assistant" ? (
               m.content ? (
                 <Markdown>{m.content}</Markdown>

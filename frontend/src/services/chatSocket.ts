@@ -34,9 +34,13 @@ export class ChatSocket {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
-  send(content: string, model?: string): void {
+  send(content: string, images?: string[]): void {
     if (!this.connected) throw new Error("WebSocket não conectado.");
-    const message: UserMessage = { type: "user_message", content, ...(model ? { model } : {}) };
+    const message: UserMessage = {
+      type: "user_message",
+      content,
+      ...(images && images.length ? { images } : {}),
+    };
     this.ws!.send(JSON.stringify(message));
   }
 

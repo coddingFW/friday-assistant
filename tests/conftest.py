@@ -39,6 +39,7 @@ class FakeLLMProvider:
         self._models = models if models is not None else ["fake-model:latest"]
         self._tokens = tokens if tokens is not None else ["Olá", ", ", "mundo!"]
         self.calls: list[list[ChatMessage]] = []
+        self.models: list[str | None] = []
 
     async def health(self) -> bool:
         return self._reachable
@@ -50,6 +51,7 @@ class FakeLLMProvider:
         self, messages: list[ChatMessage], *, model: str | None = None
     ) -> AsyncIterator[str]:
         self.calls.append(list(messages))
+        self.models.append(model)
         for token in self._tokens:
             yield token
 

@@ -29,6 +29,7 @@ from backend.perception.sensors.microphone import (
     MICROPHONE_DESCRIPTOR,
     MicrophoneSensor,
 )
+from backend.perception.sensors.screen import SCREEN_DESCRIPTOR, ScreenCaptureSensor
 from backend.rag.factory import create_search_provider
 from backend.rag.service import RagService
 from backend.stt.factory import create_stt_provider
@@ -81,6 +82,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 max_utterance_ms=settings.mic_max_utterance_ms,
             ),
         )
+    if settings.vision_enabled:
+        registry.register(SCREEN_DESCRIPTOR, lambda: ScreenCaptureSensor())
     app.state.sensor_registry = registry
     app.state.sensor_manager = SensorManager(registry)
 
@@ -95,6 +98,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         tts_provider=settings.tts_provider,
         stt_enabled=settings.stt_enabled,
         stt_model=settings.whisper_model if settings.stt_enabled else None,
+        vision_enabled=settings.vision_enabled,
+        vision_model=settings.vision_model if settings.vision_enabled else None,
         sensors=len(app.state.sensor_registry.available()),
         warmup=settings.ollama_warmup,
     )

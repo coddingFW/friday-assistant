@@ -18,3 +18,7 @@ export function getHealth(): Promise<HealthResponse> {
 export function listModels(): Promise<{ provider: string; models: string[] }> {
   return getJson("/llm/models");
 }
+
+export function captureScreen(): Promise<{ image: string; mime: string }> {
+  return getJson("/vision/screen");
+}

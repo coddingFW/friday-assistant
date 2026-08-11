@@ -12,3 +12,5 @@ piper-tts>=1.6  # síntese de voz local (traz onnxruntime); voz .onnx baixada à
 faster-whisper>=1.1  # STT local (Whisper via CTranslate2); modelo baixado à parte
 sounddevice>=0.5  # captura de microfone (PortAudio embarcado no wheel)
 numpy>=1.24  # processamento de áudio (VAD por energia, buffers PCM)
+mss>=9  # captura de tela (Fase 8, visão)
+Pillow>=10  # imagens (captura/redimensionamento)

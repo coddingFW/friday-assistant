@@ -21,6 +21,10 @@ class UserMessage(BaseModel):
     model: str | None = Field(
         default=None, description="Modelo opcional para sobrescrever o default."
     )
+    images: list[str] = Field(
+        default_factory=list,
+        description="Imagens em base64 (sem prefixo data:) para o LLM de visão.",
+    )
 
 
 class ListenStart(BaseModel):

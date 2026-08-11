@@ -86,6 +86,21 @@ class SensorManager:
         await self._queue.put(percept)
         return percept
 
+    async def snapshot(self, sensor_id: str, **params: object) -> Percept:
+        """Captura pontual de um sensor on-demand, SEM enfileirar (uso na UI).
+
+        Diferente de :meth:`capture`, não publica no fluxo de percepção — serve a
+        pedidos diretos (ex.: anexar um screenshot a uma mensagem).
+
+        Raises:
+            SensorError: Se o sensor não for on-demand.
+        """
+        descriptor = self._registry.describe(sensor_id)
+        if descriptor.kind is not SensorKind.ON_DEMAND:
+            raise SensorError(f"Sensor '{sensor_id}' é de streaming; use activate().")
+        sensor = self._registry.create(sensor_id)
+        return await sensor.capture(**params)  # type: ignore[union-attr]
+
     async def submit(self, percept: Percept) -> None:
         """Injeta uma percepção de origem externa (ex.: cliente remoto na LAN)."""
         await self._queue.put(percept)

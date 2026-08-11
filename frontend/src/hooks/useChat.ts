@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSocket } from "../services/chatSocket";
 import { audioPlayer } from "../services/audioPlayer";
 import { detectWake } from "../services/wakeWord";
+import { captureScreen as apiCaptureScreen } from "../services/api";
 import type { ChatMessage, ServerEvent, StatusState } from "../types";
 
 let counter = 0;
@@ -44,6 +45,10 @@ export interface UseChat {
   setAutoSend: (value: boolean) => void;
   speaking: boolean;
   stopSpeaking: () => void;
+  pendingImage: string | null;
+  attachImageFile: (file: File) => void;
+  captureScreen: () => void;
+  clearImage: () => void;
   handsFree: boolean;
   setHandsFree: (value: boolean) => void;
   wakeWord: string;
@@ -61,6 +66,7 @@ export function useChat(): UseChat {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [turnActive, setTurnActive] = useState(false);
+  const [pendingImage, setPendingImage] = useState<{ dataUrl: string; base64: string } | null>(null);
   const [autoSend, setAutoSendState] = useState<boolean>(() => readBool("friday.autosend", false));
   // Mãos-livres NÃO é persistido: ligar exige um gesto (destrava o áudio da fala).
   const [handsFree, setHandsFreeState] = useState(false);
@@ -88,6 +94,8 @@ export function useChat(): UseChat {
   wakeWordRef.current = wakeWord;
   const turnActiveRef = useRef(turnActive);
   turnActiveRef.current = turnActive;
+  const pendingImageRef = useRef(pendingImage);
+  pendingImageRef.current = pendingImage;
 
   useEffect(() => audioPlayer.onChange(() => setSpeaking(audioPlayer.speaking)), []);
   const stopSpeaking = useCallback(() => audioPlayer.stop(), []);
@@ -154,23 +162,48 @@ export function useChat(): UseChat {
 
   const send = useCallback((text: string) => {
     const content = text.trim();
-    if (!content || !socketRef.current?.connected) return;
+    const img = pendingImageRef.current;
+    if ((!content && !img) || !socketRef.current?.connected) return;
+    const outText = content || "Descreva a imagem."; // backend exige texto
     audioPlayer.stop(); // barge-in
     void audioPlayer.unlock();
     setError(null);
     setTurnActive(true);
     setMessages((prev) => [
       ...prev,
-      { id: newId(), role: "user", content },
+      { id: newId(), role: "user", content: outText, image: img?.dataUrl },
       { id: newId(), role: "assistant", content: "", pending: true },
     ]);
     try {
-      socketRef.current.send(content);
+      socketRef.current.send(outText, img ? [img.base64] : undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao enviar.");
       setTurnActive(false);
     }
+    if (img) setPendingImage(null);
   }, []);
+
+  const attachImageFile = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      const comma = dataUrl.indexOf(",");
+      const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : "";
+      if (base64) setPendingImage({ dataUrl, base64 });
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const captureScreen = useCallback(async () => {
+    try {
+      const { image, mime } = await apiCaptureScreen();
+      setPendingImage({ dataUrl: `data:${mime};base64,${image}`, base64: image });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao capturar a tela.");
+    }
+  }, []);
+
+  const clearImage = useCallback(() => setPendingImage(null), []);
 
   const handleEvent = useCallback(
     (event: ServerEvent) => {
@@ -273,6 +306,10 @@ export function useChat(): UseChat {
     setAutoSend,
     speaking,
     stopSpeaking,
+    pendingImage: pendingImage?.dataUrl ?? null,
+    attachImageFile,
+    captureScreen: () => void captureScreen(),
+    clearImage,
     handsFree,
     setHandsFree,
     wakeWord,

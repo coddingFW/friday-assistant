@@ -173,6 +173,19 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- Visão / Multimodalidade (Fase 8) ---------------------------------
+    vision_enabled: bool = Field(
+        default=True,
+        description="Se True, habilita imagens (upload/tela) enviadas ao LLM de visão.",
+    )
+    vision_model: str = Field(
+        default="llava",
+        description=(
+            "Modelo multimodal do Ollama usado quando há imagem (ex.: llava, "
+            "llama3.2-vision). Precisa estar instalado: 'ollama pull llava'."
+        ),
+    )
+
     # --- STT (transcrição de voz — Fase 6) --------------------------------
     stt_enabled: bool = Field(
         default=True,

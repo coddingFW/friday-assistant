@@ -26,6 +26,7 @@ class RagService:
         query: str,
         results: list[SearchResult],
         history: Sequence[ChatMessage] = (),
+        images: Sequence[str] = (),
     ) -> list[ChatMessage]:
         """Monta as mensagens: sistema + histórico + contexto (se houver) + usuário.
 
@@ -34,6 +35,7 @@ class RagService:
             results: Resultados de busca já recuperados (pode ser vazio).
             history: Turnos anteriores (user/assistant) em ordem cronológica, para
                 dar contexto multi-turno ao LLM. Vazio = conversa sem memória.
+            images: Imagens (base64) anexadas à pergunta, para o LLM de visão.
 
         Returns:
             Lista de :class:`ChatMessage` pronta para o provedor de LLM.
@@ -45,5 +47,7 @@ class RagService:
         context = build_context(results)
         if context:
             messages.append(ChatMessage(role="system", content=context))
-        messages.append(ChatMessage(role="user", content=query))
+        messages.append(
+            ChatMessage(role="user", content=query, images=tuple(images))
+        )
         return messages

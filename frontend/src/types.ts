@@ -58,6 +58,7 @@ export interface UserMessage {
   type: "user_message";
   content: string;
   model?: string;
+  images?: string[]; // base64 (sem prefixo data:) para o LLM de visão
 }
 export interface ListenStart {
   type: "listen_start";
@@ -75,6 +76,7 @@ export interface ChatMessage {
   content: string;
   sources?: Source[];
   audioUrl?: string;
+  image?: string; // data URL da imagem anexada (exibição)
   pending?: boolean;
 }
 

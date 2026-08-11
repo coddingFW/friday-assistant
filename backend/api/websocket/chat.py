@@ -152,7 +152,12 @@ async def _handle_turn(
     streaming: se o envio falhar, aborta o turno e fecha o gerador (propaga o
     cancelamento até o LLM), sem gravar resposta parcial.
     """
-    events = service.run(message.content, model=message.model, history=history)
+    events = service.run(
+        message.content,
+        model=message.model,
+        history=history,
+        images=message.images,
+    )
     answer_parts: list[str] = []
     failed = False
     try:

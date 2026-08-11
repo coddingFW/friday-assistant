@@ -23,6 +23,10 @@ export default function App() {
     setAutoSend,
     speaking,
     stopSpeaking,
+    pendingImage,
+    attachImageFile,
+    captureScreen,
+    clearImage,
     handsFree,
     setHandsFree,
     wakeWord,
@@ -71,6 +75,10 @@ export default function App() {
           onToggleAutoSend={setAutoSend}
           speaking={speaking}
           onStopSpeaking={stopSpeaking}
+          pendingImage={pendingImage}
+          onAttachImage={attachImageFile}
+          onCaptureScreen={captureScreen}
+          onClearImage={clearImage}
           handsFree={handsFree}
           onToggleHandsFree={setHandsFree}
           wakeWord={wakeWord}

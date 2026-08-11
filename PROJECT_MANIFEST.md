@@ -79,7 +79,7 @@ Todas as soluções são locais.
 | 5 | Avatar (frontend; expressão por status + lip-sync por amplitude) ✅ |
 | 6 | STT (microfone → primeiro `StreamingSensor` concreto) ✅ |
 | 7 | Loop contínuo (multimodal-aware) — mãos-livres + wake word ✅ |
-| **8** | **Visão / Multimodalidade** (webcam, captura de tela, OCR, LLM de visão) — habilitada pela camada de sensores |
+| **8** | **Visão / Multimodalidade** (captura de tela + imagem → LLM de visão ✅; webcam/OCR a seguir) — habilitada pela camada de sensores |
 | 9 | Evolução (memória longa, cache, múltiplos modelos, plugins, empacotamento) |
 
 ## Convenções
