@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { KeyboardEvent } from "react";
+import type { ClipboardEvent, KeyboardEvent } from "react";
 
 interface ComposerProps {
   value: string;
@@ -60,6 +60,22 @@ export function Composer({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
+    }
+  };
+
+  // Colar (Ctrl+V) uma imagem do clipboard anexa direto, sem o botão.
+  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.kind === "file" && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          onAttachImage(file);
+          return;
+        }
+      }
     }
   };
 
@@ -140,6 +156,7 @@ export function Composer({
           rows={1}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
+          onPaste={onPaste}
         />
         {speaking ? (
           <button type="button" className="composer__stop" onClick={onStopSpeaking} title="Interromper a fala da Friday">
