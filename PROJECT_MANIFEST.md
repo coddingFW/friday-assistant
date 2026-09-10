@@ -50,7 +50,7 @@ O Brain **nunca** acessa diretamente webcam, microfone ou tela — apenas a cama
 | TTS | Piper (`piper-tts`); sintetiza no Host, toca no cliente | ADR-0003, ADR-0007 |
 | Frontend | Tauri 2.0 + React (TS), web app puro (REST/WS) | ADR-0001, ADR-0006 |
 | Percepção | Camada `perception/` (Ports & Adapters + Strategy) | ADR-0004 |
-| Banco | SQLite via Repository Pattern | — (Fase 9) |
+| Banco | SQLite via Repository Pattern (`backend/memory/`) | ADR-0012 |
 
 ## Comunicação
 - **REST:** configuração, CRUD, histórico, perfis, persistência.
@@ -80,7 +80,8 @@ Todas as soluções são locais.
 | 6 | STT (microfone → primeiro `StreamingSensor` concreto) ✅ |
 | 7 | Loop contínuo (multimodal-aware) — mãos-livres + wake word ✅ |
 | **8** | **Visão / Multimodalidade** (captura de tela + imagem → LLM de visão ✅; webcam/OCR a seguir) — habilitada pela camada de sensores |
-| 9 | Evolução (memória longa, cache, múltiplos modelos, plugins, empacotamento) |
+| **9** | Evolução — **memória longa (SQLite + conversas persistentes) ✅**; cache, múltiplos modelos, plugins, empacotamento a seguir |
+| **10** | **Workspace de código** — projeto local (leitura) + modelo de código (`qwen2.5-coder`, roteado) + painel de projeto no frontend ✅; escrita de arquivos a seguir | ADR-0013 |
 
 ## Convenções
 - Código, imports absolutos a partir de `backend`.
