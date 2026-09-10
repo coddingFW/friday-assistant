@@ -49,6 +49,12 @@ acentos, "mudando a sílaba tônica".
 - [ ] Aplicar bloco de código proposto pela Friday direto no arquivo (diff + confirmação).
 - [ ] Busca no código exposta na UI (endpoint `search` já existe no backend).
 
+## Chat — pré-visualização de mockups (concluído — ADR-0015)
+- [x] Blocos ```html/```svg viram **preview ao vivo** no chat (iframe sandboxed,
+      toggle Visualização/Código, largura desktop/mobile, tela cheia). O
+      `code_system_prompt` pede mockup como HTML único autocontido. Validado ao vivo.
+- [ ] Auto-altura do iframe (via `postMessage`) e "abrir no editor" a partir da prévia.
+
 ## Higiene
 - [x] Organizar o trabalho não commitado em commits (set/2026) — Fases 9 e 10 +
       voz(mute)/lightbox subiram em 3 commits (`fee4f96` backend, `1bd2dc4`

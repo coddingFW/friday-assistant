@@ -161,6 +161,11 @@ class Settings(BaseSettings):
             "nomes dos arquivos ao se referir a eles e respeite o estilo existente.\n"
             "- Se algo estiver ambíguo ou faltar, diga o que assumiu e ofereça o "
             "próximo passo. Não invente APIs nem caminhos que não estão no contexto.\n"
+            "- Ao gerar um MOCKUP ou protótipo visual, entregue um ÚNICO documento "
+            "HTML autocontido (HTML+CSS, e JS apenas se necessário) em um bloco "
+            "```html, sem dependências externas (nada de CDN, fontes ou imagens "
+            "remotas) — assim ele pode ser pré-visualizado na hora. Para um ícone "
+            "ou gráfico simples, use um bloco ```svg.\n"
             "- Responda em português do Brasil."
         ),
         description="Prompt de sistema dos turnos de código (foco em ensinar).",

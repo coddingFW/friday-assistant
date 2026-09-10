@@ -54,7 +54,7 @@ export function MessageList({ messages }: MessageListProps) {
             ) : null}
             {m.role === "assistant" ? (
               m.content ? (
-                <Markdown>{m.content}</Markdown>
+                <Markdown pending={m.pending}>{m.content}</Markdown>
               ) : m.pending ? (
                 <span className="cursor">▍</span>
               ) : null
