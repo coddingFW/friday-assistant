@@ -34,12 +34,19 @@ export class ChatSocket {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
-  send(content: string, images?: string[]): void {
+  send(
+    content: string,
+    images?: string[],
+    contextFiles?: string[],
+    conversationId?: string,
+  ): void {
     if (!this.connected) throw new Error("WebSocket não conectado.");
     const message: UserMessage = {
       type: "user_message",
       content,
       ...(images && images.length ? { images } : {}),
+      ...(contextFiles && contextFiles.length ? { context_files: contextFiles } : {}),
+      ...(conversationId ? { conversation_id: conversationId } : {}),
     };
     this.ws!.send(JSON.stringify(message));
   }

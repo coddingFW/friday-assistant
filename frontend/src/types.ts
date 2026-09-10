@@ -43,6 +43,11 @@ export interface TranscriptEvent {
   text: string;
   final: boolean;
 }
+export interface ConversationEvent {
+  type: "conversation";
+  id: string;
+  title: string;
+}
 
 export type ServerEvent =
   | StatusEvent
@@ -51,7 +56,8 @@ export type ServerEvent =
   | AudioEvent
   | DoneEvent
   | ErrorEvent
-  | TranscriptEvent;
+  | TranscriptEvent
+  | ConversationEvent;
 
 // Cliente -> Servidor (WebSocket)
 export interface UserMessage {
@@ -59,6 +65,8 @@ export interface UserMessage {
   content: string;
   model?: string;
   images?: string[]; // base64 (sem prefixo data:) para o LLM de visão
+  context_files?: string[]; // arquivos do projeto a incluir como contexto (código)
+  conversation_id?: string; // conversa a retomar (memória de longo prazo — Fase 9)
 }
 export interface ListenStart {
   type: "listen_start";
@@ -78,6 +86,41 @@ export interface ChatMessage {
   audioUrl?: string;
   image?: string; // data URL da imagem anexada (exibição)
   pending?: boolean;
+}
+
+// Workspace (projeto local — Fase 10)
+export interface WsRoot {
+  root: string | null;
+}
+export interface WsTreeEntry {
+  path: string; // relativo à raiz, separador "/"
+  name: string;
+  is_dir: boolean;
+  size: number;
+}
+export interface WsFile {
+  path: string;
+  text: string;
+  truncated: boolean;
+  size: number;
+}
+
+// Conversas (histórico / memória de longo prazo — Fase 9)
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  created_at: string; // ISO 8601
+  updated_at: string; // ISO 8601
+  message_count: number;
+}
+export interface ConversationMessage {
+  role: Role;
+  content: string;
+  model?: string | null;
+  created_at: string; // ISO 8601
+}
+export interface ConversationDetail extends ConversationSummary {
+  messages: ConversationMessage[];
 }
 
 // REST

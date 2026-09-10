@@ -13,6 +13,10 @@ interface ComposerProps {
   onToggleAutoSend: (value: boolean) => void;
   speaking: boolean;
   onStopSpeaking: () => void;
+  muted: boolean;
+  onToggleMuted: (value: boolean) => void;
+  contextCount: number;
+  onClearContext: () => void;
   pendingImage: string | null;
   onAttachImage: (file: File) => void;
   onCaptureScreen: () => void;
@@ -37,6 +41,10 @@ export function Composer({
   onToggleAutoSend,
   speaking,
   onStopSpeaking,
+  muted,
+  onToggleMuted,
+  contextCount,
+  onClearContext,
   pendingImage,
   onAttachImage,
   onCaptureScreen,
@@ -93,6 +101,22 @@ export function Composer({
 
   return (
     <div className="composer">
+      {contextCount > 0 ? (
+        <div className="composer__ctx" title="Arquivos do projeto no contexto">
+          <span className="composer__ctx-label">
+            {contextCount} {contextCount === 1 ? "arquivo" : "arquivos"} no contexto
+          </span>
+          <button
+            type="button"
+            className="composer__ctx-x"
+            onClick={onClearContext}
+            title="Limpar contexto"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+
       {pendingImage ? (
         <div className="composer__attach">
           <img src={pendingImage} alt="anexo" />
@@ -136,6 +160,15 @@ export function Composer({
           title="Capturar a tela"
         >
           🖥️
+        </button>
+        <button
+          type="button"
+          className={`composer__icon ${muted ? "composer__icon--muted" : ""}`}
+          onClick={() => onToggleMuted(!muted)}
+          title={muted ? "Voz silenciada — clique para ouvir a Friday" : "Silenciar a voz da Friday"}
+          aria-pressed={muted}
+        >
+          {muted ? "🔇" : "🔊"}
         </button>
         <input
           ref={fileRef}

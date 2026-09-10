@@ -36,6 +36,12 @@ export interface UseChat {
   status: StatusState;
   connected: boolean;
   error: string | null;
+  /** Conversa ativa (memória de longo prazo). `null` = ainda não persistida. */
+  conversationId: string | null;
+  /** Começa uma conversa nova: limpa a tela; o próximo envio cria no banco. */
+  newConversation: () => void;
+  /** Retoma uma conversa: mostra o histórico e passa a enviar com o id dela. */
+  resumeConversation: (id: string, messages: ChatMessage[]) => void;
   send: (text: string) => void;
   draft: string;
   setDraft: (text: string) => void;
@@ -45,6 +51,8 @@ export interface UseChat {
   setAutoSend: (value: boolean) => void;
   speaking: boolean;
   stopSpeaking: () => void;
+  muted: boolean;
+  setMuted: (value: boolean) => void;
   pendingImage: string | null;
   attachImageFile: (file: File) => void;
   captureScreen: () => void;
@@ -57,11 +65,17 @@ export interface UseChat {
   setRequireWakeWord: (value: boolean) => void;
 }
 
-export function useChat(): UseChat {
+export interface UseChatOptions {
+  /** Arquivos do projeto (caminhos relativos) a enviar como contexto de código. */
+  contextFiles?: string[];
+}
+
+export function useChat(options: UseChatOptions = {}): UseChat {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<StatusState>("idle");
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -78,6 +92,8 @@ export function useChat(): UseChat {
     }
   });
   const [requireWakeWord, setRequireWakeState] = useState<boolean>(() => readBool("friday.requireWake", true));
+  // Silenciar a voz da Friday (não tocar a fala automaticamente). Persistido.
+  const [muted, setMutedState] = useState<boolean>(() => readBool("friday.muted", false));
 
   const socketRef = useRef<ChatSocket | null>(null);
   const micOnRef = useRef(false);
@@ -92,13 +108,26 @@ export function useChat(): UseChat {
   requireWakeRef.current = requireWakeWord;
   const wakeWordRef = useRef(wakeWord);
   wakeWordRef.current = wakeWord;
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
   const turnActiveRef = useRef(turnActive);
   turnActiveRef.current = turnActive;
   const pendingImageRef = useRef(pendingImage);
   pendingImageRef.current = pendingImage;
+  const conversationIdRef = useRef(conversationId);
+  conversationIdRef.current = conversationId;
+  // Arquivos de contexto (workspace) vivem no App; um ref os expõe ao send
+  // (inclusive quando o envio vem da voz).
+  const contextFilesRef = useRef<string[]>(options.contextFiles ?? []);
+  contextFilesRef.current = options.contextFiles ?? [];
 
   useEffect(() => audioPlayer.onChange(() => setSpeaking(audioPlayer.speaking)), []);
   const stopSpeaking = useCallback(() => audioPlayer.stop(), []);
+  const setMuted = useCallback((value: boolean) => {
+    setMutedState(value);
+    writeBool("friday.muted", value);
+    if (value) audioPlayer.stop(); // silencia imediatamente a fala em curso
+  }, []);
 
   const setAutoSend = useCallback((value: boolean) => {
     setAutoSendState(value);
@@ -174,8 +203,14 @@ export function useChat(): UseChat {
       { id: newId(), role: "user", content: outText, image: img?.dataUrl },
       { id: newId(), role: "assistant", content: "", pending: true },
     ]);
+    const ctx = contextFilesRef.current;
     try {
-      socketRef.current.send(outText, img ? [img.base64] : undefined);
+      socketRef.current.send(
+        outText,
+        img ? [img.base64] : undefined,
+        ctx.length ? ctx : undefined,
+        conversationIdRef.current ?? undefined,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao enviar.");
       setTurnActive(false);
@@ -205,11 +240,40 @@ export function useChat(): UseChat {
 
   const clearImage = useCallback(() => setPendingImage(null), []);
 
+  // Começa do zero: esvazia a tela e "esquece" a conversa atual. O próximo
+  // envio, sem conversation_id, faz o backend criar uma conversa nova.
+  const newConversation = useCallback(() => {
+    audioPlayer.stop();
+    setMessages([]);
+    setConversationId(null);
+    setError(null);
+    setTurnActive(false);
+  }, []);
+
+  // Retoma uma conversa do histórico: mostra as mensagens já persistidas e passa
+  // a enviar com o id dela (o backend semeia sua janela de contexto do banco no
+  // próximo turno).
+  const resumeConversation = useCallback(
+    (id: string, history: ChatMessage[]) => {
+      audioPlayer.stop();
+      setMessages(history);
+      setConversationId(id);
+      setError(null);
+      setTurnActive(false);
+    },
+    [],
+  );
+
   const handleEvent = useCallback(
     (event: ServerEvent) => {
       switch (event.type) {
         case "status":
           setStatus(event.state);
+          break;
+        case "conversation":
+          // Backend criou ou retomou a conversa: guarda o id p/ os próximos
+          // turnos e para a barra lateral destacar/atualizar a ativa.
+          setConversationId(event.id);
           break;
         case "sources":
           patchAssistant((m) => ({ ...m, sources: event.sources }));
@@ -219,8 +283,10 @@ export function useChat(): UseChat {
           break;
         case "audio": {
           const url = `data:${event.mime};base64,${event.data}`;
+          // Guarda o áudio (mantém o botão "Ouvir" para reprodução manual),
+          // mas só toca automaticamente se a voz não estiver silenciada.
           patchAssistant((m) => ({ ...m, audioUrl: url }));
-          void audioPlayer.play(url);
+          if (!mutedRef.current) void audioPlayer.play(url);
           break;
         }
         case "transcript": {
@@ -297,6 +363,9 @@ export function useChat(): UseChat {
     status,
     connected,
     error,
+    conversationId,
+    newConversation,
+    resumeConversation,
     send,
     draft,
     setDraft,
@@ -306,6 +375,8 @@ export function useChat(): UseChat {
     setAutoSend,
     speaking,
     stopSpeaking,
+    muted,
+    setMuted,
     pendingImage: pendingImage?.dataUrl ?? null,
     attachImageFile,
     captureScreen: () => void captureScreen(),
