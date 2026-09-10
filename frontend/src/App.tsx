@@ -142,6 +142,7 @@ export default function App() {
             onToggleSelect={workspace.toggleSelect}
             onClearSelected={workspace.clearSelected}
             onClose={() => setShowProject(false)}
+            onFileSaved={workspace.refresh}
           />
         ) : null}
         <div className="app__content">

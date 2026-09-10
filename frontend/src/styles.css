@@ -816,6 +816,59 @@ body {
 .hist-row__no { color: var(--muted, #93a1b1); }
 .hist-row__no:hover { color: var(--text, #e7eef5); }
 
+/* ===== Fase 10 — Editor de arquivo (escrita) ===== */
+/* Lápis por arquivo na árvore do projeto */
+.ws-edit {
+  margin-left: auto; flex-shrink: 0; width: 22px; height: 20px; border: none;
+  background: transparent; color: var(--faint, #63748a); cursor: pointer;
+  font-size: 12px; border-radius: 5px; opacity: 0;
+}
+.ws-row:hover .ws-edit { opacity: 1; }
+.ws-edit:hover { color: var(--accent, #34d6c0); background: color-mix(in srgb, var(--accent, #34d6c0) 14%, transparent); }
+
+/* Modal do editor */
+.fed {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center;
+  justify-content: center; padding: 24px;
+  background: color-mix(in srgb, #000 55%, transparent);
+}
+.fed__box {
+  width: min(880px, 100%); height: min(82vh, 100%); display: flex; flex-direction: column;
+  background: var(--surface, #0e151e); border: 1px solid var(--border, #223040);
+  border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.fed__head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border, #223040); }
+.fed__title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fed__path { color: var(--muted, #93a1b1); font-weight: 400; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+.fed__x { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border, #223040); background: transparent; color: var(--faint, #63748a); cursor: pointer; }
+.fed__x:hover { color: var(--text, #e7eef5); }
+.fed__empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--faint, #63748a); font-size: 13px; padding: 20px; text-align: center; }
+.fed__empty--err { color: var(--danger, #e5484d); }
+.fed__warn {
+  padding: 10px 16px; font-size: 12px; color: #f0b429;
+  background: color-mix(in srgb, #f0b429 12%, transparent);
+  border-bottom: 1px solid var(--border, #223040);
+}
+.fed__area {
+  flex: 1; width: 100%; resize: none; border: none; outline: none; padding: 14px 16px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px;
+  line-height: 1.55; color: var(--text, #e7eef5); background: var(--raised, #0b121a);
+  white-space: pre; overflow: auto; tab-size: 2;
+}
+.fed__area:read-only { opacity: .7; }
+.fed__foot { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--border, #223040); }
+.fed__status { flex: 1; min-width: 0; font-size: 12px; color: var(--faint, #63748a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fed__ok { color: #5dcaa5; }
+.fed__err { color: var(--danger, #e5484d); }
+.fed__confirm { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted, #93a1b1); }
+.fed__save {
+  font: inherit; font-size: 12.5px; cursor: pointer; padding: 7px 16px; border-radius: 8px;
+  color: #04342c; background: var(--accent, #34d6c0); border: 1px solid var(--accent, #34d6c0); font-weight: 600;
+}
+.fed__save:disabled { opacity: .45; cursor: default; }
+.fed__cancel { font: inherit; font-size: 12.5px; cursor: pointer; padding: 7px 12px; border-radius: 8px; color: var(--muted, #93a1b1); background: transparent; border: 1px solid var(--border, #223040); }
+.fed__cancel:hover { color: var(--text, #e7eef5); }
+
 /* Chip de contexto no composer */
 .composer__ctx {
   display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;

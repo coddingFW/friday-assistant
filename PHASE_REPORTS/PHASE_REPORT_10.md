@@ -57,11 +57,25 @@ de ensino + RAG pulado), preservando o `llama3.1` para conversa geral.
   (ignorando ruído), selecionar arquivo marca o contexto, chip + "modo código"
   aparecem. `tsc` limpo e build de produção ok.
 
+## Escrita/edição (concluído — ADR-0014, set/2026)
+Incremento que tira o workspace do "somente leitura": a Friday passa a **editar**
+arquivos, sempre **iniciada e confirmada pelo usuário**, confinada à raiz e com
+**backup** do conteúdo anterior.
+- **Backend:** `write_file` na porta (`WriteResult`); `LocalFsWorkspace` reusa o
+  `_safe_path` e recusa dir ignorado / sobre pasta / sufixo binário / acima do
+  limite; backup em `./data/workspace_backups/` (fora do projeto, gitignored);
+  gate `FRIDAY_WORKSPACE_WRITE_ENABLED` (default True); REST `POST /workspace/file`.
+- **Frontend:** `FileEditor.tsx` (modal com confirmação inline; **trava salvar
+  quando o arquivo veio truncado**), lápis por arquivo no `WorkspacePanel`,
+  refresh da árvore ao salvar; `writeWorkspaceFile` no `api.ts`.
+- **Validado:** 10 testes novos (**101 verdes**); ao vivo — editar `exemplo.py`
+  numa pasta de teste, salvar → novo conteúdo no disco + backup com o antigo.
+
 ## Limitações / pendências
-- **Somente leitura:** a Friday não edita arquivos. Escrita (com confirmação,
-  restrita à raiz, backup/git) é um incremento futuro.
 - Raiz do workspace é única e por processo (app local de um usuário).
 - Busca é textual simples (sem índice); ok para projetos pequenos/médios.
+- Escrita é do arquivo inteiro (editor); apagar/renomear e aplicar blocos
+  propostos pela Friday (diff + confirmação) ficam para depois.
 
 ## Checklist
 - [x] Camada `workspace/` (porta + adapter local + fábrica + serviço)
@@ -69,6 +83,6 @@ de ensino + RAG pulado), preservando o `llama3.1` para conversa geral.
 - [x] REST: abrir pasta / árvore / ler arquivo / buscar
 - [x] Turno de código: `context_files` → `code_model` + prompt de ensino + RAG pulado
 - [x] `qwen2.5-coder:7b` como modelo de código (config)
-- [x] Testes verdes (91) e boot real validado
 - [x] Frontend: apontar pasta + árvore + seleção de contexto (validado ao vivo)
-- [ ] Escrita/edição de arquivos com confirmação (futuro)
+- [x] Escrita/edição de arquivos com confirmação, confinada, com backup (ADR-0014)
+- [x] Testes verdes (101) e validado ao vivo (leitura + escrita)

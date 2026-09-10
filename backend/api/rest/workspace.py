@@ -48,6 +48,20 @@ class SearchHitOut(BaseModel):
     text: str
 
 
+class WriteRequest(BaseModel):
+    """Escrita de um arquivo do projeto (iniciada e confirmada pelo usuário)."""
+
+    path: str
+    text: str
+
+
+class WriteResultOut(BaseModel):
+    path: str
+    created: bool
+    bytes_written: int
+    backup_path: str | None
+
+
 router = APIRouter()
 
 
@@ -106,6 +120,32 @@ async def read_file(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
         ) from exc
     return FileResponse(path=fc.path, text=fc.text, truncated=fc.truncated, size=fc.size)
+
+
+@router.post(
+    "/workspace/file", response_model=WriteResultOut, summary="Escreve um arquivo"
+)
+async def write_file(
+    body: WriteRequest,
+    ws: Annotated[WorkspaceService, Depends(get_workspace_service)],
+) -> WriteResultOut:
+    """Escreve/edita um arquivo de texto do projeto (confinado, com backup).
+
+    A escrita é sempre iniciada e confirmada pelo usuário no cliente; o backend
+    só a executa quando permitida por configuração e confinada à raiz.
+    """
+    try:
+        result = await ws.write_file(body.path, body.text)
+    except WorkspaceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    return WriteResultOut(
+        path=result.path,
+        created=result.created,
+        bytes_written=result.bytes_written,
+        backup_path=result.backup_path,
+    )
 
 
 @router.get(

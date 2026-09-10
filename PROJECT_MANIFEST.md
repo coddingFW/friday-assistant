@@ -81,7 +81,7 @@ Todas as soluções são locais.
 | 7 | Loop contínuo (multimodal-aware) — mãos-livres + wake word ✅ |
 | **8** | **Visão / Multimodalidade** (captura de tela + imagem → LLM de visão ✅; webcam/OCR a seguir) — habilitada pela camada de sensores |
 | **9** | Evolução — **memória longa (SQLite + conversas persistentes) ✅**; cache, múltiplos modelos, plugins, empacotamento a seguir |
-| **10** | **Workspace de código** — projeto local (leitura) + modelo de código (`qwen2.5-coder`, roteado) + painel de projeto no frontend ✅; escrita de arquivos a seguir | ADR-0013 |
+| **10** | **Workspace de código** — projeto local (leitura ✅ + **escrita/edição confinada, confirmada, com backup** ✅) + modelo de código (`qwen2.5-coder`, roteado) + painel de projeto no frontend ✅ | ADR-0013, ADR-0014 |
 
 ## Convenções
 - Código, imports absolutos a partir de `backend`.

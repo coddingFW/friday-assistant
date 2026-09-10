@@ -4,16 +4,21 @@ Confina TODO acesso à raiz escolhida pelo usuário: caminhos são resolvidos
 (``Path.resolve``, seguindo symlinks) e recusados se saírem da raiz. I/O
 bloqueante roda em ``asyncio.to_thread`` para não travar o event loop.
 
-Somente leitura nesta fatia: a Friday lê e ensina, não escreve.
+Leitura sempre disponível; a escrita (opcional por configuração) é sempre
+iniciada pelo usuário, confinada à raiz e guarda um backup do conteúdo anterior
+antes de sobrescrever.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
+import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.workspace.ports import FileContent, SearchHit, TreeEntry
+from backend.workspace.ports import FileContent, SearchHit, TreeEntry, WriteResult
 from backend.utils.errors import WorkspaceError
 from backend.utils.logging import get_logger
 
@@ -44,10 +49,14 @@ class LocalFsWorkspace:
         ignore_dirs: list[str],
         max_file_kb: int,
         max_tree_entries: int,
+        write_enabled: bool = False,
+        backup_dir: str = "./data/workspace_backups",
     ) -> None:
         self._ignore = {d.lower() for d in ignore_dirs}
         self._max_file_bytes = max_file_kb * 1024
         self._max_entries = max_tree_entries
+        self._write_enabled = write_enabled
+        self._backup_dir = Path(backup_dir).expanduser()
         self._root: Path | None = None
 
     @property
@@ -65,6 +74,9 @@ class LocalFsWorkspace:
 
     async def search(self, query: str, *, max_hits: int = 100) -> list[SearchHit]:
         return await asyncio.to_thread(self._search, query, max_hits)
+
+    async def write_file(self, rel_path: str, text: str) -> WriteResult:
+        return await asyncio.to_thread(self._write_file, rel_path, text)
 
     # --- Implementação síncrona (roda em thread) ---------------------------
 
@@ -165,3 +177,69 @@ class LocalFsWorkspace:
                 except OSError:
                     continue
         return hits
+
+    def _write_file(self, rel_path: str, text: str) -> WriteResult:
+        if not self._write_enabled:
+            raise WorkspaceError("A escrita de arquivos está desativada.")
+        root = self._require_root()
+        path = self._safe_path(rel_path)
+        # Recusa escrever dentro de diretório ignorado (.git, .venv, dist…).
+        rel_parts = path.relative_to(root).parts if path != root else ()
+        if not rel_parts:
+            raise WorkspaceError("Caminho de arquivo inválido (é a própria raiz).")
+        if self._is_ignored(rel_parts):
+            raise WorkspaceError(
+                f"Não é permitido escrever em diretório ignorado: {rel_path}"
+            )
+        if path.is_dir():
+            raise WorkspaceError(f"O caminho é uma pasta, não um arquivo: {rel_path}")
+        suffix = path.suffix.lower()
+        if suffix and suffix not in _TEXT_SUFFIXES:
+            raise WorkspaceError(f"Tipo de arquivo não editável como texto: {rel_path}")
+        data = text.encode("utf-8")
+        if len(data) > self._max_file_bytes:
+            raise WorkspaceError(
+                f"Conteúdo excede o limite de {self._max_file_bytes // 1024} KB."
+            )
+        existed = path.is_file()
+        backup_path = self._backup(path) if existed else None
+        if not existed:
+            # Cria pastas intermediárias (já confinadas por _safe_path).
+            path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            path.write_bytes(data)
+        except OSError as exc:
+            raise WorkspaceError(f"Falha ao escrever {rel_path}: {exc}") from exc
+        logger.info(
+            "workspace_file_written",
+            path=str(path),
+            created=not existed,
+            bytes=len(data),
+            backup=backup_path,
+        )
+        return WriteResult(
+            path=Path(rel_path).as_posix(),
+            created=not existed,
+            bytes_written=len(data),
+            backup_path=backup_path,
+        )
+
+    def _backup(self, path: Path) -> str:
+        """Copia o conteúdo atual de ``path`` para o diretório de backup.
+
+        O backup fica FORA do projeto, numa subpasta por raiz (hash do caminho
+        absoluto), nomeado com timestamp + o caminho relativo achatado — assim
+        várias versões coexistem e nada polui o projeto.
+        """
+        root = self._require_root()
+        rel = path.relative_to(root).as_posix()
+        root_key = hashlib.sha1(str(root).encode("utf-8")).hexdigest()[:12]
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%f")
+        dest_dir = self._backup_dir / root_key
+        dest = dest_dir / f"{stamp}__{rel.replace('/', '__')}"
+        try:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, dest)
+        except OSError as exc:
+            raise WorkspaceError(f"Falha ao criar backup de {rel}: {exc}") from exc
+        return str(dest)

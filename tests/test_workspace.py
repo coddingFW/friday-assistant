@@ -1,6 +1,6 @@
-"""Testes da Fase 10 (workspace de código, somente leitura): adapter de sistema
-de arquivos (com segurança de caminho), serviço de contexto, roteamento do turno
-de código e REST do workspace."""
+"""Testes da Fase 10 (workspace de código): adapter de sistema de arquivos (com
+segurança de caminho, leitura e escrita confinada com backup), serviço de
+contexto, roteamento do turno de código e REST do workspace."""
 
 from __future__ import annotations
 
@@ -105,6 +105,85 @@ async def test_search_finds_text(tmp_path: Path) -> None:
     assert any(h.path == "sub/util.py" for h in hits)
 
 
+# --- Adapter: escrita (confinada, com backup) -------------------------------
+
+
+def _wsw(root: Path, backups: Path, **over) -> LocalFsWorkspace:
+    """Workspace com escrita habilitada e diretório de backup dedicado."""
+    return _ws(root, write_enabled=True, backup_dir=str(backups), **over)
+
+
+async def test_write_creates_new_file(tmp_path: Path) -> None:
+    """Escrever um arquivo inexistente cria (sem backup)."""
+    _make_project(tmp_path)
+    w = _wsw(tmp_path, tmp_path.parent / "bak")
+    await w.set_root(str(tmp_path))
+    res = await w.write_file("novo/ola.py", "print('novo')\n")
+    assert res.created and res.backup_path is None
+    assert (tmp_path / "novo" / "ola.py").read_text(encoding="utf-8") == "print('novo')\n"
+
+
+async def test_write_overwrites_and_backs_up(tmp_path: Path) -> None:
+    """Sobrescrever guarda o conteúdo anterior no backup."""
+    _make_project(tmp_path)
+    backups = tmp_path.parent / "bak"
+    w = _wsw(tmp_path, backups)
+    await w.set_root(str(tmp_path))
+    res = await w.write_file("main.py", "print('novo conteudo')\n")
+    assert not res.created and res.backup_path is not None
+    # O arquivo tem o novo conteúdo; o backup, o antigo.
+    assert (tmp_path / "main.py").read_text(encoding="utf-8") == "print('novo conteudo')\n"
+    assert Path(res.backup_path).read_text(encoding="utf-8") == "print('oi')\n"
+
+
+async def test_write_disabled_raises(tmp_path: Path) -> None:
+    """Com a escrita desativada, write_file falha."""
+    _make_project(tmp_path)
+    w = _ws(tmp_path)  # write_enabled=False por padrão
+    await w.set_root(str(tmp_path))
+    with pytest.raises(WorkspaceError):
+        await w.write_file("main.py", "x")
+
+
+async def test_write_escape_is_blocked(tmp_path: Path) -> None:
+    """Não é possível escrever fora da raiz via '..'."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    _make_project(proj)
+    w = _wsw(proj, tmp_path / "bak")
+    await w.set_root(str(proj))
+    with pytest.raises(WorkspaceError):
+        await w.write_file("../evil.txt", "hack")
+    assert not (tmp_path / "evil.txt").exists()
+
+
+async def test_write_refuses_ignored_dir(tmp_path: Path) -> None:
+    """Escrever dentro de diretório ignorado (.git, node_modules) é recusado."""
+    _make_project(tmp_path)
+    w = _wsw(tmp_path, tmp_path.parent / "bak")
+    await w.set_root(str(tmp_path))
+    with pytest.raises(WorkspaceError):
+        await w.write_file("node_modules/x.js", "// no")
+
+
+async def test_write_refuses_binary_suffix(tmp_path: Path) -> None:
+    """Sufixo não-texto (ex.: .png) não é editável como texto."""
+    _make_project(tmp_path)
+    w = _wsw(tmp_path, tmp_path.parent / "bak")
+    await w.set_root(str(tmp_path))
+    with pytest.raises(WorkspaceError):
+        await w.write_file("img.png", "not really an image")
+
+
+async def test_write_refuses_directory(tmp_path: Path) -> None:
+    """Escrever sobre um caminho que é pasta é recusado."""
+    _make_project(tmp_path)
+    w = _wsw(tmp_path, tmp_path.parent / "bak")
+    await w.set_root(str(tmp_path))
+    with pytest.raises(WorkspaceError):
+        await w.write_file("sub", "x")
+
+
 # --- Serviço: montagem do contexto ------------------------------------------
 
 
@@ -158,10 +237,14 @@ async def test_coding_turn_uses_code_model_and_skips_rag() -> None:
 # --- REST do workspace ------------------------------------------------------
 
 
-def _app_with_workspace(tmp_path: Path):
+def _app_with_workspace(tmp_path: Path, *, write_enabled: bool = False):
     app = create_app()
     provider = LocalFsWorkspace(
-        ignore_dirs=["node_modules", ".git"], max_file_kb=256, max_tree_entries=2000
+        ignore_dirs=["node_modules", ".git"],
+        max_file_kb=256,
+        max_tree_entries=2000,
+        write_enabled=write_enabled,
+        backup_dir=str(tmp_path.parent / "bak"),
     )
     app.state.workspace_service = WorkspaceService(provider, context_char_budget=24000)
     return app
@@ -194,4 +277,44 @@ def test_rest_file_escape_is_400(tmp_path: Path) -> None:
     client = TestClient(_app_with_workspace(tmp_path))
     client.post("/api/workspace/root", json={"path": str(proj)})
     r = client.get("/api/workspace/file", params={"path": "../segredo.txt"})
+    assert r.status_code == 400
+
+
+def test_rest_write_flow(tmp_path: Path) -> None:
+    """POST /workspace/file cria e depois sobrescreve (com backup)."""
+    _make_project(tmp_path)
+    client = TestClient(_app_with_workspace(tmp_path, write_enabled=True))
+    client.post("/api/workspace/root", json={"path": str(tmp_path)})
+
+    # Cria um arquivo novo.
+    r = client.post("/api/workspace/file", json={"path": "novo.py", "text": "a = 1\n"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["created"] is True and body["backup_path"] is None
+    assert (tmp_path / "novo.py").read_text(encoding="utf-8") == "a = 1\n"
+
+    # Sobrescreve um existente: created=False e backup presente.
+    r2 = client.post("/api/workspace/file", json={"path": "main.py", "text": "b = 2\n"})
+    assert r2.status_code == 200 and r2.json()["created"] is False
+    assert r2.json()["backup_path"]
+
+
+def test_rest_write_escape_is_400(tmp_path: Path) -> None:
+    """Escrever fora da raiz via REST devolve 400 e não cria nada."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    _make_project(proj)
+    client = TestClient(_app_with_workspace(tmp_path, write_enabled=True))
+    client.post("/api/workspace/root", json={"path": str(proj)})
+    r = client.post("/api/workspace/file", json={"path": "../evil.txt", "text": "x"})
+    assert r.status_code == 400
+    assert not (tmp_path / "evil.txt").exists()
+
+
+def test_rest_write_disabled_is_400(tmp_path: Path) -> None:
+    """Com a escrita desativada, o POST devolve 400."""
+    _make_project(tmp_path)
+    client = TestClient(_app_with_workspace(tmp_path, write_enabled=False))
+    client.post("/api/workspace/root", json={"path": str(tmp_path)})
+    r = client.post("/api/workspace/file", json={"path": "main.py", "text": "x"})
     assert r.status_code == 400

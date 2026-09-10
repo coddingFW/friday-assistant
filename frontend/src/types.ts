@@ -104,6 +104,12 @@ export interface WsFile {
   truncated: boolean;
   size: number;
 }
+export interface WsWriteResult {
+  path: string;
+  created: boolean;
+  bytes_written: number;
+  backup_path: string | null;
+}
 
 // Conversas (histórico / memória de longo prazo — Fase 9)
 export interface ConversationSummary {

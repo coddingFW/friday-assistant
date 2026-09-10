@@ -15,6 +15,7 @@ from backend.workspace.ports import (
     SearchHit,
     TreeEntry,
     WorkspaceProvider,
+    WriteResult,
 )
 from backend.utils.errors import WorkspaceError
 from backend.utils.logging import get_logger
@@ -23,7 +24,7 @@ logger = get_logger(__name__)
 
 
 class WorkspaceService:
-    """Casos de uso do projeto local, sobre a porta do provedor (só leitura)."""
+    """Casos de uso do projeto local, sobre a porta do provedor (leitura + escrita)."""
 
     def __init__(self, provider: WorkspaceProvider, *, context_char_budget: int) -> None:
         self._provider = provider
@@ -44,6 +45,10 @@ class WorkspaceService:
 
     async def search(self, query: str, *, max_hits: int = 100) -> list[SearchHit]:
         return await self._provider.search(query, max_hits=max_hits)
+
+    async def write_file(self, rel_path: str, text: str) -> WriteResult:
+        """Escreve/edita um arquivo do projeto (confinado, com backup)."""
+        return await self._provider.write_file(rel_path, text)
 
     async def build_context_blocks(self, paths: Sequence[str]) -> list[str]:
         """Monta blocos de contexto (system) a partir dos arquivos pedidos.

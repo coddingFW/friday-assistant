@@ -14,4 +14,6 @@ def create_workspace_provider(settings: Settings) -> WorkspaceProvider:
         ignore_dirs=settings.workspace_ignore_dirs,
         max_file_kb=settings.workspace_max_file_kb,
         max_tree_entries=settings.workspace_max_tree_entries,
+        write_enabled=settings.workspace_write_enabled,
+        backup_dir=settings.workspace_backup_dir,
     )

@@ -195,6 +195,21 @@ class Settings(BaseSettings):
         ],
         description="Diretórios ignorados ao listar/buscar (ruído/binários).",
     )
+    workspace_write_enabled: bool = Field(
+        default=True,
+        description=(
+            "Se True, permite ESCREVER/editar arquivos do projeto (sempre "
+            "iniciado e confirmado pelo usuário, confinado à raiz, com backup do "
+            "conteúdo anterior). Desligue para deixar o workspace só-leitura."
+        ),
+    )
+    workspace_backup_dir: str = Field(
+        default="./data/workspace_backups",
+        description=(
+            "Pasta (fora do projeto) onde o conteúdo anterior de um arquivo é "
+            "copiado antes de ser sobrescrito. Gitignored via /data/."
+        ),
+    )
 
     # --- Memória de longo prazo (persistência — Fase 9) -------------------
     memory_enabled: bool = Field(

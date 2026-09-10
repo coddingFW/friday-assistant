@@ -8,6 +8,7 @@ import type {
   WsFile,
   WsRoot,
   WsTreeEntry,
+  WsWriteResult,
 } from "../types";
 
 /** Extrai a mensagem de erro do backend (campo `detail`) quando houver. */
@@ -65,6 +66,13 @@ export function getWorkspaceTree(): Promise<WsTreeEntry[]> {
 
 export function getWorkspaceFile(path: string): Promise<WsFile> {
   return getJson<WsFile>(`/workspace/file?path=${encodeURIComponent(path)}`);
+}
+
+export function writeWorkspaceFile(
+  path: string,
+  text: string,
+): Promise<WsWriteResult> {
+  return postJson<WsWriteResult>("/workspace/file", { path, text });
 }
 
 // --- Conversas (histórico / memória de longo prazo — Fase 9) ----------------

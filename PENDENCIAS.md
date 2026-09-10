@@ -41,9 +41,15 @@ acentos, "mudando a sílaba tônica".
 - [ ] Webcam (StreamingSensor via opencv) e OCR dedicado (tesseract) — ADR próprio.
 
 ## Fase 10 — workspace (evolução)
-- [ ] **Escrita/edição de arquivos** com confirmação, restrita à raiz, backup/git.
+- [x] **Escrita/edição de arquivos** com confirmação, restrita à raiz, com backup
+      (set/2026, ADR-0014) — editor manual no `WorkspacePanel` (lápis → `FileEditor`),
+      `POST /api/workspace/file`, gate `FRIDAY_WORKSPACE_WRITE_ENABLED`. Trava
+      salvar quando o arquivo veio truncado. Validado ao vivo.
+- [ ] Apagar/renomear arquivo (cada um com confirmação própria).
+- [ ] Aplicar bloco de código proposto pela Friday direto no arquivo (diff + confirmação).
 - [ ] Busca no código exposta na UI (endpoint `search` já existe no backend).
 
 ## Higiene
-- [ ] Organizar o trabalho não commitado em commits (Fases 9 e 10 + visão/identidade
-      + lightbox + mute).
+- [x] Organizar o trabalho não commitado em commits (set/2026) — Fases 9 e 10 +
+      voz(mute)/lightbox subiram em 3 commits (`fee4f96` backend, `1bd2dc4`
+      frontend, `67d5986` docs) e foram para o GitHub.

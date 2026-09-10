@@ -3,6 +3,7 @@
 
 import { useMemo, useState } from "react";
 import type { WsTreeEntry } from "../types";
+import { FileEditor } from "./FileEditor";
 
 interface TreeNode {
   entry: WsTreeEntry;
@@ -49,6 +50,7 @@ interface WorkspacePanelProps {
   onToggleSelect: (path: string) => void;
   onClearSelected: () => void;
   onClose: () => void;
+  onFileSaved?: () => void;
 }
 
 export function WorkspacePanel({
@@ -61,8 +63,10 @@ export function WorkspacePanel({
   onToggleSelect,
   onClearSelected,
   onClose,
+  onFileSaved,
 }: WorkspacePanelProps) {
   const [path, setPath] = useState(root ?? "");
+  const [editing, setEditing] = useState<string | null>(null);
   const tree = useMemo(() => buildTree(entries), [entries]);
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const [expanded, setExpanded] = useState<Set<string>>(() => {
@@ -116,6 +120,17 @@ export function WorkspacePanel({
           </span>
           <span className="ws-ico">📄</span>
           <span className="ws-name">{entry.name}</span>
+          <button
+            className="ws-edit"
+            title="Editar arquivo"
+            aria-label={`Editar ${entry.name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditing(entry.path);
+            }}
+          >
+            ✎
+          </button>
         </div>,
       ];
     });
@@ -178,6 +193,14 @@ export function WorkspacePanel({
           renderNodes(tree, 0)
         )}
       </div>
+
+      {editing ? (
+        <FileEditor
+          path={editing}
+          onClose={() => setEditing(null)}
+          onSaved={onFileSaved}
+        />
+      ) : null}
     </aside>
   );
 }
