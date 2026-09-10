@@ -72,9 +72,9 @@ async def test_run_threads_history_into_llm_messages() -> None:
     _ = [e async for e in service.run("qual o nome dele?", history=history)]
 
     sent = llm.calls[-1]
-    # system prompt + 2 de histórico + pergunta atual, nesta ordem.
-    assert sent[0].role == "system"
-    assert sent[1:3] == history
+    # 2 system (identidade + comportamento) + 2 de histórico + pergunta atual.
+    assert sent[0].role == "system" and sent[1].role == "system"
+    assert sent[2:4] == history
     assert sent[-1] == ChatMessage(role="user", content="qual o nome dele?")
 
 

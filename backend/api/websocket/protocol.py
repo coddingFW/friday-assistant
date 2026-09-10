@@ -25,6 +25,21 @@ class UserMessage(BaseModel):
         default_factory=list,
         description="Imagens em base64 (sem prefixo data:) para o LLM de visão.",
     )
+    conversation_id: str | None = Field(
+        default=None,
+        description=(
+            "Conversa a retomar (memória de longo prazo). Ausente = continua a "
+            "conversa atual da conexão, ou cria uma nova na primeira mensagem."
+        ),
+    )
+    context_files: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Arquivos do projeto (caminhos relativos à raiz do workspace) a "
+            "incluir como contexto. Não vazio = turno de código: usa o modelo de "
+            "código e o prompt de ensino, e pula a busca web."
+        ),
+    )
 
 
 class ListenStart(BaseModel):
@@ -49,6 +64,18 @@ class StatusEvent(BaseModel):
 
     type: Literal["status"] = "status"
     state: StatusState
+
+
+class ConversationEvent(BaseModel):
+    """Anuncia a conversa ativa (criada ou retomada) para o cliente.
+
+    Emitido quando o backend cria uma conversa nova ou passa a atender uma
+    ``conversation_id`` diferente, para o cliente conhecer o id (memória longa).
+    """
+
+    type: Literal["conversation"] = "conversation"
+    id: str
+    title: str
 
 
 class Source(BaseModel):

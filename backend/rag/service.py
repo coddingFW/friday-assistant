@@ -40,13 +40,45 @@ class RagService:
         Returns:
             Lista de :class:`ChatMessage` pronta para o provedor de LLM.
         """
+        # Identidade primeiro (autoconhecimento — reconhece a própria tela),
+        # depois as instruções de comportamento/RAG.
         messages = [
-            ChatMessage(role="system", content=self._settings.rag_system_prompt)
+            ChatMessage(role="system", content=self._settings.identity_prompt),
+            ChatMessage(role="system", content=self._settings.rag_system_prompt),
         ]
         messages.extend(history)
         context = build_context(results)
         if context:
             messages.append(ChatMessage(role="system", content=context))
+        messages.append(
+            ChatMessage(role="user", content=query, images=tuple(images))
+        )
+        return messages
+
+    def build_code_messages(
+        self,
+        query: str,
+        history: Sequence[ChatMessage] = (),
+        context_blocks: Sequence[str] = (),
+        code_prompt: str | None = None,
+        images: Sequence[str] = (),
+    ) -> list[ChatMessage]:
+        """Monta as mensagens de um turno de código (projeto local — Fase 10).
+
+        Ordem: identidade + prompt de ensino (código) + histórico + um bloco de
+        sistema por arquivo do projeto + a pergunta. Sem contexto de busca web (a
+        pergunta é sobre o projeto local, não a web).
+        """
+        messages = [
+            ChatMessage(role="system", content=self._settings.identity_prompt),
+            ChatMessage(
+                role="system",
+                content=code_prompt or self._settings.code_system_prompt,
+            ),
+        ]
+        messages.extend(history)
+        for block in context_blocks:
+            messages.append(ChatMessage(role="system", content=block))
         messages.append(
             ChatMessage(role="user", content=query, images=tuple(images))
         )

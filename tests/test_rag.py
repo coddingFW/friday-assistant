@@ -44,22 +44,22 @@ async def test_rag_service_retrieve_limits_results() -> None:
 
 
 def test_build_messages_includes_system_context_and_user() -> None:
-    """Com resultados, monta system(prompt) + system(contexto) + user."""
+    """Com resultados: system(identidade) + system(prompt) + system(contexto) + user."""
     settings = Settings(_env_file=None)
     service = RagService(FakeSearchProvider(), settings)
     results = [SearchResult(title="A", url="https://a.com", snippet="x")]
     messages = service.build_messages("pergunta", results)
-    assert [m.role for m in messages] == ["system", "system", "user"]
+    assert [m.role for m in messages] == ["system", "system", "system", "user"]
     assert messages[-1].content == "pergunta"
-    assert "https://a.com" in messages[1].content
+    assert "https://a.com" in messages[2].content
 
 
 def test_build_messages_without_results_skips_context() -> None:
-    """Sem resultados, não há mensagem de contexto — só system + user."""
+    """Sem resultados, não há mensagem de contexto — só os 2 system + user."""
     settings = Settings(_env_file=None)
     service = RagService(FakeSearchProvider(), settings)
     messages = service.build_messages("pergunta", [])
-    assert [m.role for m in messages] == ["system", "user"]
+    assert [m.role for m in messages] == ["system", "system", "user"]
 
 
 def test_factory_creates_duckduckgo() -> None:

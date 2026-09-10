@@ -55,6 +55,15 @@ class STTUnavailableError(STTError):
     """O provedor de STT (ex.: Whisper) está inacessível ou mal configurado."""
 
 
+class StorageError(FridayError):
+    """Falha genérica na camada de persistência (memória de longo prazo)."""
+
+
+class WorkspaceError(FridayError):
+    """Falha na camada de workspace (projeto local): raiz inválida, caminho fora
+    da raiz, arquivo ilegível etc."""
+
+
 class SensorError(FridayError):
     """Falha genérica na camada de sensores (percepção multimodal)."""
 

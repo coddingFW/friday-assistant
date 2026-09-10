@@ -64,6 +64,7 @@ class ConversationService:
         model: str | None = None,
         history: Sequence[ChatMessage] = (),
         images: Sequence[str] = (),
+        context_blocks: Sequence[str] = (),
     ) -> AsyncIterator[ConversationEvent]:
         """Processa um turno e emite eventos de domínio em streaming.
 
@@ -77,7 +78,7 @@ class ConversationService:
         """
         queue: asyncio.Queue[object] = asyncio.Queue()
         producer = asyncio.create_task(
-            self._produce(query, model, history, images, queue)
+            self._produce(query, model, history, images, context_blocks, queue)
         )
         interval = self._settings.tts_filler_interval
         responding = False
@@ -116,12 +117,17 @@ class ConversationService:
         model: str | None,
         history: Sequence[ChatMessage],
         images: Sequence[str],
+        context_blocks: Sequence[str],
         queue: asyncio.Queue[object],
     ) -> None:
         """Roda o turno de domínio e empilha os eventos na fila para o consumidor."""
         try:
             async for event in self._turn_events(
-                query, model=model, history=history, images=images
+                query,
+                model=model,
+                history=history,
+                images=images,
+                context_blocks=context_blocks,
             ):
                 await queue.put(event)
         except Exception as exc:  # noqa: BLE001 - isola falha inesperada do produtor
@@ -136,19 +142,22 @@ class ConversationService:
         model: str | None,
         history: Sequence[ChatMessage],
         images: Sequence[str] = (),
+        context_blocks: Sequence[str] = (),
     ) -> AsyncIterator[ConversationEvent]:
         """Eventos de domínio de um turno (RAG + LLM + voz), sem frases-ponte.
 
-        Com imagem, o turno é multimodal: pula a busca web (a pergunta é sobre a
-        imagem) e usa o modelo de visão. Observação: nada de `yield` em bloco
+        Três modos: texto (RAG opcional), visão (imagem → pula RAG, modelo de
+        visão) e código (arquivos do projeto no contexto → pula RAG, prompt de
+        ensino e modelo de código). Observação: nada de `yield` em bloco
         `finally` (GeneratorExit na limpeza); o estado "idle" é emitido nos
         caminhos normais/erro.
         """
         yield StatusChanged(state="thinking")
 
+        coding = bool(context_blocks)
         results = []
-        # Visão não usa RAG: a pergunta é sobre a imagem, não sobre a web.
-        if self._settings.rag_enabled and not images:
+        # Visão e código não usam RAG: a pergunta é sobre a imagem/o projeto local.
+        if self._settings.rag_enabled and not images and not coding:
             yield StatusChanged(state="searching")
             try:
                 results = await self._rag.retrieve(query)
@@ -160,12 +169,23 @@ class ConversationService:
                 logger.warning("rag_retrieve_failed", error=str(exc))
                 results = []
 
-        messages = self._rag.build_messages(query, results, history, images=images)
+        if coding:
+            messages = self._rag.build_code_messages(
+                query, history, context_blocks, images=images
+            )
+        else:
+            messages = self._rag.build_messages(
+                query, results, history, images=images
+            )
 
-        # Com imagem e sem modelo explícito, usa o modelo multimodal (visão).
+        # Seleção do modelo: código → modelo de código; imagem → modelo de visão
+        # (só quando o chamador não passou um modelo explícito).
         target_model = model
-        if images and target_model is None:
-            target_model = self._settings.vision_model
+        if target_model is None:
+            if coding:
+                target_model = self._settings.code_model
+            elif images:
+                target_model = self._settings.vision_model
 
         answer_parts: list[str] = []
         try:

@@ -8,6 +8,11 @@ __pycache__/
 # Configuração local (nunca versionar segredos/hosts)
 .env
 
+# Memória de longo prazo (banco SQLite local — Fase 9). Dados do usuário.
+/data/
+*.db
+*.sqlite3
+
 # Modelos locais do backend (vozes Piper etc.) — só a pasta models/ da RAIZ.
 # Ancorado com "/" para NÃO ignorar assets do frontend (frontend/public/models/).
 /models/

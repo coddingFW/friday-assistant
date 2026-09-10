@@ -90,6 +90,29 @@ class Settings(BaseSettings):
             "muito baixo corta motores lentos e retorna menos/nenhuma fonte."
         ),
     )
+    identity_prompt: str = Field(
+        default=(
+            "Você é a Friday, uma assistente virtual multimodal que roda "
+            "localmente no computador do usuário (100% offline). Você tem voz, "
+            "ouve pelo microfone e enxerga imagens e a tela.\n"
+            "Sua própria interface é um app de chat de tema escuro com detalhes "
+            "em verde-água (teal), contendo: no topo, seu nome 'Friday', o modelo "
+            "em uso, um indicador de estado (Ociosa/Pensando/Buscando/Respondendo) "
+            "e um selo 'online'; ao centro, seu avatar — um personagem vetorial "
+            "amigável de óculos; embaixo, um campo 'Escreva sua mensagem…' com "
+            "botões de microfone (mãos-livres), anexar imagem e capturar a tela, "
+            "além das opções 'Mãos-livres' e 'Enviar a fala automaticamente'.\n"
+            "Se uma imagem ou captura de tela mostrar ESSA interface (o avatar, o "
+            "campo 'Escreva sua mensagem…' e esses botões), reconheça que é a SUA "
+            "PRÓPRIA tela — não a de outro aplicativo — e fale na primeira pessoa "
+            "(ex.: 'esta é a minha interface')."
+        ),
+        description=(
+            "Prompt de identidade da Friday (quem ela é + descrição da própria "
+            "interface). Injetado como 1ª mensagem de sistema em todos os turnos, "
+            "para dar autoconhecimento e permitir reconhecer a própria tela."
+        ),
+    )
     rag_system_prompt: str = Field(
         default=(
             "Você é Friday, uma assistente local, direta e prestativa. Responda "
@@ -114,6 +137,79 @@ class Settings(BaseSettings):
             "Máximo de mensagens (user+assistant) de histórico mantidas por "
             "conexão para dar contexto multi-turno ao LLM. 0 desativa a memória "
             "de conversa; a memória de longo prazo (persistente) é a Fase 9."
+        ),
+    )
+
+    # --- Código / Workspace (projeto local — Fase 10) ---------------------
+    code_model: str = Field(
+        default="qwen2.5-coder:7b",
+        description=(
+            "Modelo usado nos turnos de código (quando há arquivos do projeto no "
+            "contexto). Roteado à parte para não trocar o modelo de conversa "
+            "geral (llama3.1). Precisa estar instalado: 'ollama pull qwen2.5-coder:7b'."
+        ),
+    )
+    code_system_prompt: str = Field(
+        default=(
+            "Neste turno você atua como uma professora de programação paciente e "
+            "precisa. Objetivo: ENSINAR o usuário a construir, não só entregar o "
+            "resultado.\n"
+            "- Explique o raciocínio em passos curtos, do porquê ao como.\n"
+            "- Entregue código COMPLETO e funcional (nada de '...' ou trechos "
+            "omitidos), em blocos com a linguagem correta.\n"
+            "- Baseie-se nos arquivos do projeto fornecidos como contexto; cite os "
+            "nomes dos arquivos ao se referir a eles e respeite o estilo existente.\n"
+            "- Se algo estiver ambíguo ou faltar, diga o que assumiu e ofereça o "
+            "próximo passo. Não invente APIs nem caminhos que não estão no contexto.\n"
+            "- Responda em português do Brasil."
+        ),
+        description="Prompt de sistema dos turnos de código (foco em ensinar).",
+    )
+    workspace_enabled: bool = Field(
+        default=True,
+        description="Se True, permite apontar uma pasta de projeto local (leitura).",
+    )
+    workspace_max_file_kb: int = Field(
+        default=256,
+        ge=1,
+        description="Tamanho máximo (KB) de um arquivo lido do projeto.",
+    )
+    workspace_max_tree_entries: int = Field(
+        default=2000,
+        ge=1,
+        description="Máximo de entradas retornadas na árvore de arquivos.",
+    )
+    workspace_context_char_budget: int = Field(
+        default=24000,
+        ge=1000,
+        description=(
+            "Orçamento total (caracteres) de conteúdo de arquivos injetado como "
+            "contexto num turno de código. Protege o prompt do LLM local."
+        ),
+    )
+    workspace_ignore_dirs: list[str] = Field(
+        default_factory=lambda: [
+            ".git", "node_modules", ".venv", "venv", "__pycache__", "dist",
+            "build", ".pytest_cache", ".mypy_cache", ".ruff_cache", "target",
+            ".idea", ".vscode", "src-tauri/target", ".next", "coverage",
+        ],
+        description="Diretórios ignorados ao listar/buscar (ruído/binários).",
+    )
+
+    # --- Memória de longo prazo (persistência — Fase 9) -------------------
+    memory_enabled: bool = Field(
+        default=True,
+        description=(
+            "Se True, persiste as conversas em SQLite (memória de longo prazo) e "
+            "as retoma entre sessões. Desligado, o backend volta ao histórico "
+            "apenas em RAM por conexão (comportamento anterior à Fase 9)."
+        ),
+    )
+    db_path: str = Field(
+        default="./data/friday.db",
+        description=(
+            "Caminho do arquivo SQLite da memória de longo prazo. Relativo à raiz "
+            "de execução; a pasta é criada se não existir. Nunca versionado."
         ),
     )
 

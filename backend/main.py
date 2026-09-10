@@ -23,6 +23,10 @@ from backend.api.websocket import router as ws_router
 from backend.brain.conversation import ConversationService
 from backend.brain.factory import create_llm_provider
 from backend.config.settings import Settings, get_settings
+from backend.memory.factory import create_conversation_repository
+from backend.memory.service import MemoryService
+from backend.workspace.factory import create_workspace_provider
+from backend.workspace.service import WorkspaceService
 from backend.perception.manager import SensorManager
 from backend.perception.registry import SensorRegistry
 from backend.perception.sensors.microphone import (
@@ -65,6 +69,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.llm_provider, rag_service, settings, tts=tts_provider
     )
 
+    # Memória de longo prazo (Fase 9): persiste conversas em SQLite. Desativável
+    # por config; falha ao abrir degrada para só-RAM (não derruba o startup).
+    app.state.memory_repository = None
+    app.state.memory_service = None
+    if settings.memory_enabled:
+        try:
+            repository = create_conversation_repository(settings)
+            app.state.memory_repository = repository
+            app.state.memory_service = MemoryService(repository)
+        except Exception as exc:  # noqa: BLE001 - degrada sem memória persistente
+            logger.warning("memory_init_failed", error=str(exc))
+
+    # Workspace de código (Fase 10): acesso de LEITURA a um projeto local. A raiz
+    # começa vazia; o usuário aponta a pasta pela UI (REST). Desativável por config.
+    app.state.workspace_service = None
+    if settings.workspace_enabled:
+        app.state.workspace_service = WorkspaceService(
+            create_workspace_provider(settings),
+            context_char_budget=settings.workspace_context_char_budget,
+        )
+
     # Camada de percepção multimodal. Na Fase 6 registramos o primeiro sensor
     # concreto — o microfone — quando o STT está ativo.
     registry = SensorRegistry()
@@ -94,6 +119,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ollama=settings.ollama_base_url,
         rag_enabled=settings.rag_enabled,
         rag_provider=settings.rag_provider,
+        memory_enabled=settings.memory_enabled and app.state.memory_service is not None,
+        workspace_enabled=app.state.workspace_service is not None,
+        code_model=settings.code_model,
         tts_enabled=settings.tts_enabled,
         tts_provider=settings.tts_provider,
         stt_enabled=settings.stt_enabled,
@@ -118,6 +146,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await warmup_task
         await app.state.sensor_manager.aclose()
+        if app.state.memory_repository is not None:
+            with contextlib.suppress(Exception):
+                await app.state.memory_repository.close()
         await client.aclose()
         logger.info("backend_shutdown")
 

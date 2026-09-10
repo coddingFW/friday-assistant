@@ -11,8 +11,10 @@ from fastapi import HTTPException, Request, status
 
 from backend.brain.conversation import ConversationService
 from backend.brain.ports import LLMProvider
+from backend.memory.service import MemoryService
 from backend.perception.manager import SensorManager
 from backend.stt.ports import STTProvider
+from backend.workspace.service import WorkspaceService
 
 
 def get_llm_provider(request: Request) -> LLMProvider:
@@ -43,6 +45,40 @@ def get_conversation_service(request: Request) -> ConversationService:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Serviço de conversa não inicializado.",
+        )
+    return service
+
+
+def get_memory_service(request: Request) -> MemoryService:
+    """Recupera o serviço de memória de longo prazo inicializado no lifespan.
+
+    Raises:
+        HTTPException: 503 se a memória estiver desativada ou não inicializada.
+    """
+    service: MemoryService | None = getattr(
+        request.app.state, "memory_service", None
+    )
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Memória de longo prazo desativada ou não inicializada.",
+        )
+    return service
+
+
+def get_workspace_service(request: Request) -> WorkspaceService:
+    """Recupera o serviço de workspace (projeto local) do lifespan.
+
+    Raises:
+        HTTPException: 503 se o workspace estiver desativado ou não inicializado.
+    """
+    service: WorkspaceService | None = getattr(
+        request.app.state, "workspace_service", None
+    )
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Workspace desativado ou não inicializado.",
         )
     return service
 

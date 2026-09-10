@@ -34,6 +34,7 @@ from pydantic import ValidationError
 
 from backend.api.websocket.protocol import (
     AudioEvent,
+    ConversationEvent,
     DoneEvent,
     ErrorEvent,
     Source,
@@ -54,11 +55,13 @@ from backend.brain.events import (
 )
 from backend.brain.ports import ChatMessage
 from backend.config.settings import get_settings
+from backend.memory.service import MemoryService
 from backend.perception.manager import SensorManager
 from backend.perception.modality import Modality
 from backend.perception.sensors.microphone import MICROPHONE_DESCRIPTOR
 from backend.stt.ports import STTProvider
-from backend.utils.errors import STTError
+from backend.utils.errors import STTError, StorageError, WorkspaceError
+from backend.workspace.service import WorkspaceService
 from backend.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -75,6 +78,8 @@ async def chat_socket(websocket: WebSocket) -> None:
     service: ConversationService | None = getattr(state, "conversation_service", None)
     sensor_manager: SensorManager | None = getattr(state, "sensor_manager", None)
     stt: STTProvider | None = getattr(state, "stt_provider", None)
+    memory: MemoryService | None = getattr(state, "memory_service", None)
+    workspace: WorkspaceService | None = getattr(state, "workspace_service", None)
 
     await websocket.accept()
     if service is None:
@@ -85,11 +90,13 @@ async def chat_socket(websocket: WebSocket) -> None:
         return
 
     logger.info("ws_chat_connected")
-    # Estado por conexão. A memória de curto prazo vive aqui (o
-    # ConversationService é singleton e permanece stateless). O lock serializa os
-    # envios: turno e escuta rodam concorrentes e não podem escrever ao mesmo
-    # tempo no mesmo socket.
+    # Estado por conexão. ``history`` é a janela de contexto do LLM (curto prazo,
+    # em RAM); com memória de longo prazo ativa, ela é semeada do banco e cada
+    # turno também é persistido (Fase 9). O ConversationService é singleton e
+    # permanece stateless. O lock serializa os envios: turno e escuta rodam
+    # concorrentes e não podem escrever ao mesmo tempo no mesmo socket.
     history: list[ChatMessage] = []
+    conversation_id: str | None = None
     send_lock = asyncio.Lock()
     listen_task: asyncio.Task[None] | None = None
 
@@ -115,7 +122,35 @@ async def chat_socket(websocket: WebSocket) -> None:
                         ErrorEvent(message=f"Mensagem inválida: {exc.errors()}").model_dump(),
                     )
                     continue
-                await _handle_turn(websocket, send_lock, service, message, history)
+                if memory is not None:
+                    conversation_id = await _ensure_conversation(
+                        websocket, send_lock, memory, message, conversation_id, history
+                    )
+                # Turno de código: lê os arquivos do projeto pedidos como contexto.
+                context_blocks: list[str] = []
+                if workspace is not None and message.context_files:
+                    try:
+                        context_blocks = await workspace.build_context_blocks(
+                            message.context_files
+                        )
+                    except WorkspaceError as exc:
+                        await _send(
+                            websocket,
+                            send_lock,
+                            ErrorEvent(
+                                message=f"Falha ao ler arquivos do projeto: {exc}"
+                            ).model_dump(),
+                        )
+                await _handle_turn(
+                    websocket,
+                    send_lock,
+                    service,
+                    message,
+                    history,
+                    memory,
+                    conversation_id,
+                    context_blocks,
+                )
     except WebSocketDisconnect:
         logger.info("ws_chat_disconnected")
     finally:
@@ -144,19 +179,24 @@ async def _handle_turn(
     service: ConversationService,
     message: UserMessage,
     history: list[ChatMessage],
+    memory: MemoryService | None,
+    conversation_id: str | None,
+    context_blocks: list[str],
 ) -> None:
     """Consome os eventos de domínio de um turno e os envia ao cliente.
 
     Acumula a resposta do assistente para, ao final de um turno bem-sucedido,
-    memorizá-la em ``history``. Resiliente à desconexão do cliente no meio do
-    streaming: se o envio falhar, aborta o turno e fecha o gerador (propaga o
-    cancelamento até o LLM), sem gravar resposta parcial.
+    memorizá-la em ``history`` (curto prazo) e persisti-la na memória de longo
+    prazo, quando ativa. Resiliente à desconexão do cliente no meio do streaming:
+    se o envio falhar, aborta o turno e fecha o gerador (propaga o cancelamento
+    até o LLM), sem gravar resposta parcial.
     """
     events = service.run(
         message.content,
         model=message.model,
         history=history,
         images=message.images,
+        context_blocks=context_blocks,
     )
     answer_parts: list[str] = []
     failed = False
@@ -178,6 +218,67 @@ async def _handle_turn(
     answer = "".join(answer_parts)
     if not failed and answer:
         _remember(history, message.content, answer)
+        if memory is not None and conversation_id is not None:
+            # Persiste o turno. Falha de disco degrada graciosamente: o turno já
+            # foi entregue ao cliente e continua na memória de curto prazo.
+            try:
+                await memory.record_turn(
+                    conversation_id, message.content, answer, model=message.model
+                )
+            except StorageError as exc:
+                logger.warning("memory_record_turn_failed", error=str(exc))
+
+
+async def _ensure_conversation(
+    websocket: WebSocket,
+    send_lock: asyncio.Lock,
+    memory: MemoryService,
+    message: UserMessage,
+    current_id: str | None,
+    history: list[ChatMessage],
+) -> str | None:
+    """Resolve a conversa ativa antes de um turno (memória de longo prazo).
+
+    - ``conversation_id`` da mensagem igual à atual → mantém, nada a fazer.
+    - ``conversation_id`` existente → retoma: semeia ``history`` com a janela do
+      banco e anuncia a conversa ao cliente.
+    - sem ``conversation_id`` e já há conversa atual → continua nela.
+    - caso contrário (1ª mensagem, ou id inexistente) → cria uma conversa nova.
+
+    Degrada graciosamente: se o banco falhar, loga e devolve a conversa atual —
+    o turno segue apenas na memória de curto prazo.
+    """
+    requested = message.conversation_id
+    try:
+        if requested is not None and requested == current_id:
+            return current_id
+        if requested is not None:
+            conv = await memory.get_conversation(requested)
+            if conv is not None:
+                limit = get_settings().history_max_messages
+                window = await memory.history_window(conv.id, limit=limit)
+                history[:] = window
+                await _send(
+                    websocket,
+                    send_lock,
+                    ConversationEvent(id=conv.id, title=conv.title).model_dump(),
+                )
+                return conv.id
+            # id pedido não existe: cai para criar uma conversa nova.
+        elif current_id is not None:
+            return current_id
+
+        conv = await memory.start_conversation(message.content)
+        history.clear()
+        await _send(
+            websocket,
+            send_lock,
+            ConversationEvent(id=conv.id, title=conv.title).model_dump(),
+        )
+        return conv.id
+    except StorageError as exc:
+        logger.warning("memory_ensure_conversation_failed", error=str(exc))
+        return current_id
 
 
 def _remember(history: list[ChatMessage], user_text: str, answer: str) -> None:
