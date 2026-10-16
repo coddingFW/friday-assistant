@@ -38,7 +38,14 @@ acentos, "mudando a sílaba tônica".
 
 ## Fase 8 — visão (incrementos)
 - [ ] Validar a qualidade do `minicpm-v` no uso real (troca de `llava` feita).
-- [ ] Webcam (StreamingSensor via opencv) e OCR dedicado (tesseract) — ADR próprio.
+- [x] **OCR dedicado (Tesseract)** — `OcrSensor` (OnDemand) + `POST /api/vision/ocr`
+      (upload/tela) + botão 🔤 no `Composer` (texto lido cai no campo). Gate
+      `FRIDAY_OCR_ENABLED`, idioma `FRIDAY_OCR_LANG` (`por+eng`), caminho do binário
+      `FRIDAY_OCR_TESSERACT_CMD`; tessdata gravável via `FRIDAY_OCR_TESSDATA_DIR`.
+      Degrada com erro claro sem o Tesseract (ADR-0016). **Setup + validação ao vivo
+      feitos** (Tesseract v5.4.0, `por+eng` em `models/tessdata/`; OCR EN e PT
+      acentuado OK via API). Falta só o teste do botão 🔤 na UI pelo usuário.
+- [ ] Webcam (StreamingSensor via opencv) — ADR próprio.
 
 ## Fase 10 — workspace (evolução)
 - [x] **Escrita/edição de arquivos** com confirmação, restrita à raiz, com backup

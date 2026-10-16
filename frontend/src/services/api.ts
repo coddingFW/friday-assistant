@@ -50,6 +50,15 @@ export function captureScreen(): Promise<{ image: string; mime: string }> {
   return getJson("/vision/screen");
 }
 
+/** OCR: extrai o texto literal de uma imagem enviada (base64) ou da tela. */
+export function runOcr(payload: {
+  source?: "upload" | "screen";
+  image?: string;
+  lang?: string;
+}): Promise<{ text: string; lang: string; chars: number }> {
+  return postJson("/vision/ocr", payload);
+}
+
 // --- Workspace (projeto local — Fase 10) -----------------------------------
 
 export function getWorkspaceRoot(): Promise<WsRoot> {

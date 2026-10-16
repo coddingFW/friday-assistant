@@ -74,3 +74,12 @@ class SensorNotFoundError(SensorError):
 
 class AudioCaptureError(SensorError):
     """Falha ao abrir ou ler o dispositivo de áudio (microfone)."""
+
+
+class OcrUnavailableError(SensorError):
+    """O motor de OCR (Tesseract) não está instalado ou não foi encontrado.
+
+    Análogo a ``ollama pull llava``: é um pré-requisito do usuário. A mensagem
+    orienta a instalar o Tesseract e, se preciso, apontar o caminho via
+    ``FRIDAY_OCR_TESSERACT_CMD``.
+    """

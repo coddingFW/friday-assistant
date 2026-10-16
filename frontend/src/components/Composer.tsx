@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 
 interface ComposerProps {
@@ -21,6 +21,8 @@ interface ComposerProps {
   onAttachImage: (file: File) => void;
   onCaptureScreen: () => void;
   onClearImage: () => void;
+  onOcr: () => void;
+  ocrBusy: boolean;
   handsFree: boolean;
   onToggleHandsFree: (value: boolean) => void;
   wakeWord: string;
@@ -49,6 +51,8 @@ export function Composer({
   onAttachImage,
   onCaptureScreen,
   onClearImage,
+  onOcr,
+  ocrBusy,
   handsFree,
   onToggleHandsFree,
   wakeWord,
@@ -57,6 +61,20 @@ export function Composer({
   onToggleRequireWake,
 }: ComposerProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-expande o campo conforme o conteúdo (até o max-height da CSS = 160px);
+  // passando disso, rola internamente. Reavalia a cada mudança de `value` —
+  // inclusive quando o texto é injetado por fora (ex.: OCR 🔤) ou pela voz.
+  const MAX_INPUT_H = 160;
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const next = Math.min(el.scrollHeight, MAX_INPUT_H);
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight > MAX_INPUT_H ? "auto" : "hidden";
+  }, [value]);
 
   const submit = () => {
     if (disabled) return;
@@ -132,6 +150,18 @@ export function Composer({
         </div>
       ) : null}
 
+      <textarea
+        ref={inputRef}
+        className="composer__input"
+        placeholder={placeholder}
+        value={value}
+        disabled={disabled}
+        rows={1}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        onPaste={onPaste}
+      />
+
       <div className="composer__row">
         <button
           type="button"
@@ -163,6 +193,19 @@ export function Composer({
         </button>
         <button
           type="button"
+          className="composer__icon"
+          onClick={onOcr}
+          disabled={disabled || ocrBusy}
+          title={
+            pendingImage
+              ? "Ler o texto da imagem (OCR)"
+              : "Ler o texto da tela (OCR)"
+          }
+        >
+          {ocrBusy ? "…" : "🔤"}
+        </button>
+        <button
+          type="button"
           className={`composer__icon ${muted ? "composer__icon--muted" : ""}`}
           onClick={() => onToggleMuted(!muted)}
           title={muted ? "Voz silenciada — clique para ouvir a Friday" : "Silenciar a voz da Friday"}
@@ -181,23 +224,13 @@ export function Composer({
             e.target.value = "";
           }}
         />
-        <textarea
-          className="composer__input"
-          placeholder={placeholder}
-          value={value}
-          disabled={disabled}
-          rows={1}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
-        />
         {speaking ? (
-          <button type="button" className="composer__stop" onClick={onStopSpeaking} title="Interromper a fala da Friday">
+          <button type="button" className="composer__stop composer__send--right" onClick={onStopSpeaking} title="Interromper a fala da Friday">
             ⏹ Parar
           </button>
         ) : (
           <button
-            className="composer__send"
+            className="composer__send composer__send--right"
             onClick={submit}
             disabled={disabled || (!value.trim() && !pendingImage)}
             title="Enviar (Enter)"

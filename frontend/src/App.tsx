@@ -37,6 +37,8 @@ export default function App() {
     attachImageFile,
     captureScreen,
     clearImage,
+    ocr,
+    ocrBusy,
     handsFree,
     setHandsFree,
     wakeWord,
@@ -177,6 +179,8 @@ export default function App() {
               onAttachImage={attachImageFile}
               onCaptureScreen={captureScreen}
               onClearImage={clearImage}
+              onOcr={ocr}
+              ocrBusy={ocrBusy}
               handsFree={handsFree}
               onToggleHandsFree={setHandsFree}
               wakeWord={wakeWord}

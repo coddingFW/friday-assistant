@@ -14,3 +14,4 @@ sounddevice>=0.5  # captura de microfone (PortAudio embarcado no wheel)
 numpy>=1.24  # processamento de áudio (VAD por energia, buffers PCM)
 mss>=9  # captura de tela (Fase 8, visão)
 Pillow>=10  # imagens (captura/redimensionamento)
+pytesseract>=0.3.10  # OCR local (Fase 8); requer o binário do Tesseract instalado

@@ -33,6 +33,7 @@ from backend.perception.sensors.microphone import (
     MICROPHONE_DESCRIPTOR,
     MicrophoneSensor,
 )
+from backend.perception.sensors.ocr import OCR_DESCRIPTOR, OcrSensor
 from backend.perception.sensors.screen import SCREEN_DESCRIPTOR, ScreenCaptureSensor
 from backend.rag.factory import create_search_provider
 from backend.rag.service import RagService
@@ -109,6 +110,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     if settings.vision_enabled:
         registry.register(SCREEN_DESCRIPTOR, lambda: ScreenCaptureSensor())
+        if settings.ocr_enabled:
+            registry.register(
+                OCR_DESCRIPTOR,
+                lambda: OcrSensor(
+                    lang=settings.ocr_lang,
+                    tesseract_cmd=settings.ocr_tesseract_cmd,
+                    tessdata_dir=settings.ocr_tessdata_dir,
+                ),
+            )
     app.state.sensor_registry = registry
     app.state.sensor_manager = SensorManager(registry)
 
@@ -128,6 +138,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         stt_model=settings.whisper_model if settings.stt_enabled else None,
         vision_enabled=settings.vision_enabled,
         vision_model=settings.vision_model if settings.vision_enabled else None,
+        ocr_enabled=settings.vision_enabled and settings.ocr_enabled,
         sensors=len(app.state.sensor_registry.available()),
         warmup=settings.ollama_warmup,
     )

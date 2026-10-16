@@ -519,7 +519,11 @@ body {
 .composer__row {
   display: flex;
   gap: 10px;
-  align-items: flex-end;
+  align-items: center;
+}
+/* Empurra o botão Enviar/Parar para a direita da barra de ferramentas. */
+.composer__send--right {
+  margin-left: auto;
 }
 .composer__mic {
   flex: 0 0 auto;
@@ -708,7 +712,8 @@ body {
 }
 .lightbox__close:hover { color: var(--text, #e7eef5); }
 .composer__input {
-  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   resize: none;
   max-height: 160px;
   padding: 11px 13px;

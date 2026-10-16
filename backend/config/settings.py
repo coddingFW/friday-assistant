@@ -301,6 +301,37 @@ class Settings(BaseSettings):
             "llama3.2-vision). Precisa estar instalado: 'ollama pull llava'."
         ),
     )
+    ocr_enabled: bool = Field(
+        default=True,
+        description=(
+            "Se True (e a visão ligada), registra o sensor de OCR (Tesseract) que "
+            "extrai o texto literal de uma imagem/tela, sem depender do LLM de visão."
+        ),
+    )
+    ocr_lang: str = Field(
+        default="por+eng",
+        description=(
+            "Idioma(s) do Tesseract, no formato dele (ex.: 'por', 'eng', "
+            "'por+eng'). Os traineddata correspondentes precisam estar instalados."
+        ),
+    )
+    ocr_tesseract_cmd: str = Field(
+        default="",
+        description=(
+            "Caminho para o executável do Tesseract quando não está no PATH "
+            "(ex.: 'C:\\\\Program Files\\\\Tesseract-OCR\\\\tesseract.exe'). Vazio = "
+            "usa o PATH."
+        ),
+    )
+    ocr_tessdata_dir: str = Field(
+        default="",
+        description=(
+            "Diretório de traineddata a usar (--tessdata-dir). Útil quando não se "
+            "pode escrever na pasta 'tessdata' da instalação (ex.: Program Files): "
+            "aponte para um diretório gravável com os idiomas desejados. Vazio = usa "
+            "o tessdata padrão da instalação."
+        ),
+    )
 
     # --- STT (transcrição de voz — Fase 6) --------------------------------
     stt_enabled: bool = Field(

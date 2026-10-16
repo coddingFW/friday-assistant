@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSocket } from "../services/chatSocket";
 import { audioPlayer } from "../services/audioPlayer";
 import { detectWake } from "../services/wakeWord";
-import { captureScreen as apiCaptureScreen } from "../services/api";
+import { captureScreen as apiCaptureScreen, runOcr as apiRunOcr } from "../services/api";
 import type { ChatMessage, ServerEvent, StatusState } from "../types";
 
 let counter = 0;
@@ -57,6 +57,9 @@ export interface UseChat {
   attachImageFile: (file: File) => void;
   captureScreen: () => void;
   clearImage: () => void;
+  /** OCR: lê o texto da imagem anexada (ou da tela) e joga no campo de mensagem. */
+  ocr: () => void;
+  ocrBusy: boolean;
   handsFree: boolean;
   setHandsFree: (value: boolean) => void;
   wakeWord: string;
@@ -81,6 +84,7 @@ export function useChat(options: UseChatOptions = {}): UseChat {
   const [speaking, setSpeaking] = useState(false);
   const [turnActive, setTurnActive] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ dataUrl: string; base64: string } | null>(null);
+  const [ocrBusy, setOcrBusy] = useState(false);
   const [autoSend, setAutoSendState] = useState<boolean>(() => readBool("friday.autosend", false));
   // Mãos-livres NÃO é persistido: ligar exige um gesto (destrava o áudio da fala).
   const [handsFree, setHandsFreeState] = useState(false);
@@ -240,6 +244,28 @@ export function useChat(options: UseChatOptions = {}): UseChat {
 
   const clearImage = useCallback(() => setPendingImage(null), []);
 
+  // OCR: transcreve o texto da imagem anexada (upload) ou, se não houver, da
+  // tela do Host, e o insere no campo de mensagem para o usuário editar/perguntar.
+  const ocr = useCallback(async () => {
+    const img = pendingImageRef.current;
+    setOcrBusy(true);
+    setError(null);
+    try {
+      const { text, chars } = img
+        ? await apiRunOcr({ source: "upload", image: img.base64 })
+        : await apiRunOcr({ source: "screen" });
+      if (chars === 0) {
+        setError("OCR não encontrou texto na imagem.");
+        return;
+      }
+      setDraft((prev) => (prev.trim() ? `${prev}\n${text}` : text));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao executar o OCR.");
+    } finally {
+      setOcrBusy(false);
+    }
+  }, []);
+
   // Começa do zero: esvazia a tela e "esquece" a conversa atual. O próximo
   // envio, sem conversation_id, faz o backend criar uma conversa nova.
   const newConversation = useCallback(() => {
@@ -381,6 +407,8 @@ export function useChat(options: UseChatOptions = {}): UseChat {
     attachImageFile,
     captureScreen: () => void captureScreen(),
     clearImage,
+    ocr: () => void ocr(),
+    ocrBusy,
     handsFree,
     setHandsFree,
     wakeWord,
