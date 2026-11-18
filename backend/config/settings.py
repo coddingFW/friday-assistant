@@ -66,6 +66,20 @@ class Settings(BaseSettings):
         default="llama3.1:8b",
         description="Modelo default. Trocável via config (ex.: qwen3, mistral, gemma).",
     )
+    llm_num_ctx: int = Field(
+        default=8192,
+        ge=512,
+        description=(
+            "Janela de contexto (tokens) dos turnos de conversa/visão. O default "
+            "do Ollama (2048–4096) trunca em silêncio o prompt com RAG + histórico."
+        ),
+    )
+    llm_temperature: float | None = Field(
+        default=None,
+        ge=0,
+        le=2,
+        description="Temperatura da conversa geral. Vazio = default do modelo.",
+    )
 
     # --- RAG (busca web + contexto) ---------------------------------------
     rag_enabled: bool = Field(
@@ -148,6 +162,21 @@ class Settings(BaseSettings):
             "contexto). Roteado à parte para não trocar o modelo de conversa "
             "geral (llama3.1). Precisa estar instalado: 'ollama pull qwen2.5-coder:7b'."
         ),
+    )
+    code_num_ctx: int = Field(
+        default=16384,
+        ge=512,
+        description=(
+            "Janela de contexto (tokens) dos turnos de código. Precisa caber "
+            "prompts + histórico + workspace_context_char_budget (~3,5 chars/token). "
+            "Mais contexto = mais VRAM; o qwen2.5-coder aceita até 32768."
+        ),
+    )
+    code_temperature: float | None = Field(
+        default=0.2,
+        ge=0,
+        le=2,
+        description="Temperatura dos turnos de código (baixa = respostas mais precisas).",
     )
     code_system_prompt: str = Field(
         default=(

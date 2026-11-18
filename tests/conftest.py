@@ -14,7 +14,7 @@ import pytest
 
 from backend.api.dependencies import get_llm_provider
 from backend.brain.conversation import ConversationService
-from backend.brain.ports import ChatMessage
+from backend.brain.ports import ChatMessage, GenerationOptions
 from backend.config.settings import Settings
 from backend.main import create_app
 from backend.rag.ports import SearchResult
@@ -40,6 +40,7 @@ class FakeLLMProvider:
         self._tokens = tokens if tokens is not None else ["Olá", ", ", "mundo!"]
         self.calls: list[list[ChatMessage]] = []
         self.models: list[str | None] = []
+        self.options: list[GenerationOptions | None] = []
 
     async def health(self) -> bool:
         return self._reachable
@@ -48,10 +49,15 @@ class FakeLLMProvider:
         return list(self._models)
 
     async def stream_chat(
-        self, messages: list[ChatMessage], *, model: str | None = None
+        self,
+        messages: list[ChatMessage],
+        *,
+        model: str | None = None,
+        options: GenerationOptions | None = None,
     ) -> AsyncIterator[str]:
         self.calls.append(list(messages))
         self.models.append(model)
+        self.options.append(options)
         for token in self._tokens:
             yield token
 

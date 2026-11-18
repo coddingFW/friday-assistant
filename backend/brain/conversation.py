@@ -24,7 +24,7 @@ from backend.brain.events import (
     TokenGenerated,
     TurnCompleted,
 )
-from backend.brain.ports import ChatMessage, LLMProvider
+from backend.brain.ports import ChatMessage, GenerationOptions, LLMProvider
 from backend.config.settings import Settings
 from backend.rag.service import RagService
 from backend.tts.ports import SpeechAudio, TTSProvider
@@ -187,10 +187,25 @@ class ConversationService:
             elif images:
                 target_model = self._settings.vision_model
 
+        # Código tem janela/temperatura próprias: arquivos do projeto ocupam
+        # muitos tokens e pedem respostas mais determinísticas.
+        if coding:
+            options = GenerationOptions(
+                num_ctx=self._settings.code_num_ctx,
+                temperature=self._settings.code_temperature,
+            )
+        else:
+            options = GenerationOptions(
+                num_ctx=self._settings.llm_num_ctx,
+                temperature=self._settings.llm_temperature,
+            )
+
         answer_parts: list[str] = []
         try:
             responding = False
-            async for token in self._llm.stream_chat(messages, model=target_model):
+            async for token in self._llm.stream_chat(
+                messages, model=target_model, options=options
+            ):
                 if not responding:
                     yield StatusChanged(state="responding")
                     responding = True

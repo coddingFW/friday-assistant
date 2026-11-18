@@ -232,6 +232,20 @@ async def test_coding_turn_uses_code_model_and_skips_rag() -> None:
     # O bloco do arquivo entrou como mensagem de sistema.
     contents = [m.content for m in llm.calls[-1] if m.role == "system"]
     assert any("main.py" in c for c in contents)
+    # Janela e temperatura próprias de código (o default do Ollama truncaria).
+    assert llm.options[-1] is not None
+    assert llm.options[-1].num_ctx == 16384
+    assert llm.options[-1].temperature == 0.2
+
+
+async def test_chat_turn_uses_general_generation_options() -> None:
+    """Sem arquivos do projeto: usa a janela/temperatura da conversa geral."""
+    llm = FakeLLMProvider(tokens=["oi"])
+    service = build_conversation_service(llm=llm, rag_enabled=False)
+    _ = [e async for e in service.run("oi")]
+    assert llm.options[-1] is not None
+    assert llm.options[-1].num_ctx == 8192
+    assert llm.options[-1].temperature is None  # default do modelo
 
 
 # --- REST do workspace ------------------------------------------------------

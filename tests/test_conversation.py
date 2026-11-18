@@ -140,7 +140,7 @@ def test_filler_phrase_avoids_immediate_repeat() -> None:
 
 
 class _FailingLLM(FakeLLMProvider):
-    async def stream_chat(self, messages, *, model=None):
+    async def stream_chat(self, messages, *, model=None, options=None):
         raise LLMError("ollama caiu")
         yield  # pragma: no cover - torna a função um gerador
 

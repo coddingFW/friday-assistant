@@ -22,6 +22,7 @@ from backend.api.rest import router as rest_router
 from backend.api.websocket import router as ws_router
 from backend.brain.conversation import ConversationService
 from backend.brain.factory import create_llm_provider
+from backend.brain.ports import GenerationOptions
 from backend.config.settings import Settings, get_settings
 from backend.memory.factory import create_conversation_repository
 from backend.memory.service import MemoryService
@@ -147,7 +148,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     warmup_task: asyncio.Task[bool] | None = None
     provider = app.state.llm_provider
     if settings.ollama_warmup and hasattr(provider, "warmup"):
-        warmup_task = asyncio.create_task(provider.warmup(), name="ollama-warmup")
+        # Mesmo num_ctx dos turnos de conversa: senão o Ollama recarrega o modelo
+        # na 1ª mensagem e o warm-up é perdido.
+        warmup_options = GenerationOptions(num_ctx=settings.llm_num_ctx)
+        warmup_task = asyncio.create_task(
+            provider.warmup(options=warmup_options), name="ollama-warmup"
+        )
 
     try:
         yield

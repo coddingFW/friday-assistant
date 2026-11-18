@@ -12,7 +12,7 @@ import httpx
 import pytest
 
 from backend.brain.providers.ollama_provider import OllamaProvider
-from backend.brain.ports import ChatMessage
+from backend.brain.ports import ChatMessage, GenerationOptions
 from backend.utils.errors import LLMUnavailableError
 
 
@@ -150,3 +150,87 @@ async def test_health_true_and_false() -> None:
 
     assert await _make_provider(httpx.MockTransport(ok_handler)).health() is True
     assert await _make_provider(httpx.MockTransport(fail_handler)).health() is False
+
+
+async def test_stream_chat_sends_generation_options() -> None:
+    """num_ctx/temperature definidos devem ir em 'options' (só os não-nulos)."""
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        return httpx.Response(
+            200, text=json.dumps({"message": {"content": "ok"}, "done": True})
+        )
+
+    provider = _make_provider(httpx.MockTransport(handler))
+    _ = [
+        t
+        async for t in provider.stream_chat(
+            [ChatMessage(role="user", content="oi")],
+            options=GenerationOptions(num_ctx=16384, temperature=0.2),
+        )
+    ]
+    assert captured["options"] == {"num_ctx": 16384, "temperature": 0.2}
+
+    captured.clear()
+    _ = [
+        t
+        async for t in provider.stream_chat(
+            [ChatMessage(role="user", content="oi")],
+            options=GenerationOptions(num_ctx=8192),
+        )
+    ]
+    assert captured["options"] == {"num_ctx": 8192}
+
+
+async def test_stream_chat_omits_options_when_unset() -> None:
+    """Sem options: payload idêntico ao anterior (sem a chave 'options')."""
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        return httpx.Response(
+            200, text=json.dumps({"message": {"content": "ok"}, "done": True})
+        )
+
+    provider = _make_provider(httpx.MockTransport(handler))
+    _ = [t async for t in provider.stream_chat([ChatMessage(role="user", content="oi")])]
+    assert "options" not in captured
+
+
+async def test_stream_chat_tolerates_usage_metrics_on_final_chunk() -> None:
+    """O chunk final com métricas (prompt_eval_count) não deve quebrar o stream."""
+    body = json.dumps(
+        {
+            "message": {"content": "ok"},
+            "done": True,
+            "prompt_eval_count": 4000,
+            "eval_count": 10,
+        }
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=body)
+
+    provider = _make_provider(httpx.MockTransport(handler))
+    tokens = [
+        t
+        async for t in provider.stream_chat(
+            [ChatMessage(role="user", content="oi")],
+            options=GenerationOptions(num_ctx=4096),  # 4000 ≥ 90% → aviso
+        )
+    ]
+    assert tokens == ["ok"]
+
+
+async def test_warmup_sends_num_ctx() -> None:
+    """warmup com options deve repassar num_ctx (evita recarga do modelo)."""
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json={"done": True})
+
+    provider = _make_provider(httpx.MockTransport(handler))
+    assert await provider.warmup(options=GenerationOptions(num_ctx=8192)) is True
+    assert captured["options"] == {"num_ctx": 8192}

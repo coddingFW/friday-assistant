@@ -28,6 +28,21 @@ class ChatMessage:
     images: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class GenerationOptions:
+    """Parâmetros de geração de um turno, agnósticos de provedor.
+
+    ``None`` em qualquer campo = usar o default do provedor/modelo. Cada adapter
+    traduz para o seu formato (ex.: ``options`` do Ollama).
+    """
+
+    #: Tamanho da janela de contexto (tokens). Prompt acima disso é truncado
+    #: pelo provedor — por isso precisa caber identidade + histórico + arquivos.
+    num_ctx: int | None = None
+    #: Aleatoriedade da amostragem (baixa = mais determinístico, bom p/ código).
+    temperature: float | None = None
+
+
 @runtime_checkable
 class LLMProvider(Protocol):
     """Contrato que todo provedor de LLM deve cumprir.
@@ -52,12 +67,15 @@ class LLMProvider(Protocol):
         messages: list[ChatMessage],
         *,
         model: str | None = None,
+        options: GenerationOptions | None = None,
     ) -> AsyncIterator[str]:
         """Gera a resposta em streaming, token a token.
 
         Args:
             messages: Histórico da conversa em ordem cronológica.
             model: Sobrescreve o modelo default apenas para esta chamada.
+            options: Parâmetros de geração (janela de contexto, temperatura);
+                ``None`` = defaults do provedor.
 
         Yields:
             Fragmentos de texto (tokens) à medida que são gerados.
