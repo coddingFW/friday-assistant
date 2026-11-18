@@ -7,6 +7,7 @@
 // e tela cheia. O quadro é redimensionável na vertical (CSS resize).
 
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from "./Icon";
 
 interface CodePreviewProps {
   code: string;
@@ -67,18 +68,18 @@ export function CodePreview({ code, lang }: CodePreviewProps) {
           <button
             className={`cpv__segbtn ${device === "full" ? "cpv__segbtn--on" : ""}`}
             onClick={() => setDevice("full")}
-            title="Largura total"
+            title="Largura total" aria-label="Largura total"
             aria-pressed={device === "full"}
           >
-            🖥
+            <Icon name="monitor" size={14} />
           </button>
           <button
             className={`cpv__segbtn ${device === "mobile" ? "cpv__segbtn--on" : ""}`}
             onClick={() => setDevice("mobile")}
-            title="Largura de celular"
+            title="Largura de celular" aria-label="Largura de celular"
             aria-pressed={device === "mobile"}
           >
-            📱
+            <Icon name="smartphone" size={14} />
           </button>
         </div>
         <button
@@ -86,7 +87,7 @@ export function CodePreview({ code, lang }: CodePreviewProps) {
           onClick={() => setFull(true)}
           title="Abrir em tela cheia"
         >
-          ⤢ Tela cheia
+          <Icon name="expand" size={13} /> Tela cheia
         </button>
       </div>
 
@@ -105,16 +106,16 @@ export function CodePreview({ code, lang }: CodePreviewProps) {
                 <button
                   className={`cpv__segbtn ${device === "full" ? "cpv__segbtn--on" : ""}`}
                   onClick={() => setDevice("full")}
-                  title="Largura total"
+                  title="Largura total" aria-label="Largura total"
                 >
-                  🖥
+                  <Icon name="monitor" size={14} />
                 </button>
                 <button
                   className={`cpv__segbtn ${device === "mobile" ? "cpv__segbtn--on" : ""}`}
                   onClick={() => setDevice("mobile")}
-                  title="Largura de celular"
+                  title="Largura de celular" aria-label="Largura de celular"
                 >
-                  📱
+                  <Icon name="smartphone" size={14} />
                 </button>
               </div>
               <button
@@ -122,7 +123,7 @@ export function CodePreview({ code, lang }: CodePreviewProps) {
                 onClick={() => setFull(false)}
                 title="Fechar (Esc)"
               >
-                ✕ Fechar
+                <Icon name="x" size={13} /> Fechar
               </button>
             </div>
             <div className="cpv__overlaystage">{frame(true)}</div>

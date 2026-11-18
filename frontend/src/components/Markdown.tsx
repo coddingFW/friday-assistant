@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { CodePreview } from "./CodePreview";
+import { Icon } from "./Icon";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -66,11 +67,13 @@ function CodeBlock(props: any) {
               onClick={() => setShowPreview((v) => !v)}
               title={showPreview ? "Ver o código" : "Ver a visualização"}
             >
-              {showPreview ? "⟨⟩ Código" : "▶ Visualização"}
+              <Icon name={showPreview ? "code" : "eye"} size={13} />
+              {showPreview ? "Código" : "Visualização"}
             </button>
           ) : null}
           <button type="button" className="md-code__copy" onClick={copy}>
-            {copied ? "Copiado!" : "Copiar"}
+            <Icon name={copied ? "check" : "copy"} size={13} />
+            {copied ? "Copiado" : "Copiar"}
           </button>
         </div>
       </div>

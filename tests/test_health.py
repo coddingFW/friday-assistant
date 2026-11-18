@@ -15,6 +15,9 @@ async def test_health_ok(client: httpx.AsyncClient) -> None:
     assert body["status"] == "ok"
     assert body["app"] == "Friday"
     assert body["llm_reachable"] is True
+    # Medidor de contexto do frontend: modelo e janela dos turnos de código.
+    assert body["code_model"] == "qwen2.5-coder:7b"
+    assert body["code_num_ctx"] == 16384
     assert body["llm_model"] == "llama3.1:8b"
 
 

@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { getWorkspaceFile, writeWorkspaceFile } from "../services/api";
 import type { WsWriteResult } from "../types";
+import { Icon } from "./Icon";
 
 interface FileEditorProps {
   path: string;
@@ -82,7 +83,7 @@ export function FileEditor({ path, onClose, onSaved }: FileEditorProps) {
             Editar · <span className="fed__path">{path}</span>
           </span>
           <button className="fed__x" onClick={onClose} aria-label="Fechar o editor">
-            ✕
+            <Icon name="x" size={14} />
           </button>
         </div>
 

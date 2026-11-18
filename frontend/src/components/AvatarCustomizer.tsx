@@ -2,6 +2,7 @@
 // offline) como miniaturas e swatches; a escolha é salva na hora (avatarConfig).
 
 import type { ReactNode } from "react";
+import { Icon } from "./Icon";
 import { useSyncExternalStore } from "react";
 import { createAvatar } from "@dicebear/core";
 import { avataaars } from "@dicebear/collection";
@@ -141,8 +142,8 @@ export function AvatarCustomizer({ open, onClose }: { open: boolean; onClose: ()
       <div className="cz-panel" onClick={(e) => e.stopPropagation()}>
         <header className="cz-head">
           <h2>Personalizar avatar</h2>
-          <button type="button" className="cz-x" onClick={onClose} title="Fechar">
-            ✕
+          <button type="button" className="cz-x" onClick={onClose} title="Fechar" aria-label="Fechar">
+            <Icon name="x" size={14} />
           </button>
         </header>
 

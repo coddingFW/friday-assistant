@@ -137,4 +137,6 @@ export interface HealthResponse {
   llm_provider: string;
   llm_model: string;
   llm_reachable: boolean;
+  code_model?: string; // modelo dos turnos de código (arquivos no contexto)
+  code_num_ctx?: number; // janela de contexto (tokens) dos turnos de código
 }

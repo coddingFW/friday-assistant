@@ -23,6 +23,8 @@ class HealthResponse(BaseModel):
     llm_provider: str
     llm_model: str
     llm_reachable: bool
+    code_model: str
+    code_num_ctx: int
 
 
 @router.get("/health", response_model=HealthResponse, summary="Saúde do sistema")
@@ -45,4 +47,6 @@ async def health(
         llm_provider=settings.llm_provider,
         llm_model=settings.llm_model,
         llm_reachable=reachable,
+        code_model=settings.code_model,
+        code_num_ctx=settings.code_num_ctx,
     )

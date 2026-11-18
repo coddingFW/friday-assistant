@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
+import { Icon } from "./Icon";
 
 interface ComposerProps {
   value: string;
@@ -7,29 +8,25 @@ interface ComposerProps {
   onSend: (text: string) => void;
   disabled: boolean;
   busy: boolean;
+  codeMode: boolean;
   listening: boolean;
   onToggleListen: () => void;
-  autoSend: boolean;
-  onToggleAutoSend: (value: boolean) => void;
   speaking: boolean;
   onStopSpeaking: () => void;
   muted: boolean;
   onToggleMuted: (value: boolean) => void;
-  contextCount: number;
-  onClearContext: () => void;
+  contextFiles: string[];
+  onRemoveContextFile: (path: string) => void;
   pendingImage: string | null;
   onAttachImage: (file: File) => void;
   onCaptureScreen: () => void;
   onClearImage: () => void;
   onOcr: () => void;
   ocrBusy: boolean;
-  handsFree: boolean;
-  onToggleHandsFree: (value: boolean) => void;
-  wakeWord: string;
-  onChangeWakeWord: (value: string) => void;
-  requireWakeWord: boolean;
-  onToggleRequireWake: (value: boolean) => void;
 }
+
+/** Altura máxima do campo antes de rolar internamente. */
+const MAX_INPUT_H = 200;
 
 export function Composer({
   value,
@@ -37,48 +34,39 @@ export function Composer({
   onSend,
   disabled,
   busy,
+  codeMode,
   listening,
   onToggleListen,
-  autoSend,
-  onToggleAutoSend,
   speaking,
   onStopSpeaking,
   muted,
   onToggleMuted,
-  contextCount,
-  onClearContext,
+  contextFiles,
+  onRemoveContextFile,
   pendingImage,
   onAttachImage,
   onCaptureScreen,
   onClearImage,
   onOcr,
   ocrBusy,
-  handsFree,
-  onToggleHandsFree,
-  wakeWord,
-  onChangeWakeWord,
-  requireWakeWord,
-  onToggleRequireWake,
 }: ComposerProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-expande o campo conforme o conteúdo (até o max-height da CSS = 160px);
-  // passando disso, rola internamente. Reavalia a cada mudança de `value` —
-  // inclusive quando o texto é injetado por fora (ex.: OCR 🔤) ou pela voz.
-  const MAX_INPUT_H = 160;
+  // Auto-expande o campo conforme o conteúdo — inclusive quando o texto chega
+  // por fora (OCR, ditado).
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "auto";
-    const next = Math.min(el.scrollHeight, MAX_INPUT_H);
-    el.style.height = `${next}px`;
+    el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_H)}px`;
     el.style.overflowY = el.scrollHeight > MAX_INPUT_H ? "auto" : "hidden";
   }, [value]);
 
+  const canSend = !disabled && (value.trim().length > 0 || pendingImage !== null);
+
   const submit = () => {
-    if (disabled) return;
-    if (!value.trim() && !pendingImage) return;
+    if (!canSend) return;
     onSend(value);
   };
 
@@ -89,7 +77,7 @@ export function Composer({
     }
   };
 
-  // Colar (Ctrl+V) uma imagem do clipboard anexa direto, sem o botão.
+  // Colar (Ctrl+V) uma imagem do clipboard anexa direto.
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -107,164 +95,123 @@ export function Composer({
 
   const placeholder = disabled
     ? "Conectando ao backend…"
-    : handsFree
-      ? requireWakeWord
-        ? `Mãos-livres — diga "${wakeWord}" para falar`
-        : "Mãos-livres — pode falar"
+    : listening
+      ? "Ouvindo… fale agora"
       : pendingImage
         ? "O que você quer saber sobre a imagem?"
-        : listening
-          ? "Ouvindo… fale agora"
-          : "Escreva sua mensagem…";
+        : codeMode
+          ? "Pergunte sobre o projeto…"
+          : "Pergunte qualquer coisa…";
+
+  const hasChips = contextFiles.length > 0 || pendingImage !== null;
 
   return (
-    <div className="composer">
-      {contextCount > 0 ? (
-        <div className="composer__ctx" title="Arquivos do projeto no contexto">
-          <span className="composer__ctx-label">
-            {contextCount} {contextCount === 1 ? "arquivo" : "arquivos"} no contexto
-          </span>
-          <button
-            type="button"
-            className="composer__ctx-x"
-            onClick={onClearContext}
-            title="Limpar contexto"
-          >
-            ✕
-          </button>
+    <div className={`composer ${listening ? "is-listening" : ""}`}>
+      {hasChips ? (
+        <div className="composer__chips">
+          {pendingImage ? (
+            <span className="chip chip--image">
+              <img src={pendingImage} alt="" />
+              Imagem
+              <button type="button" className="chip__x" onClick={onClearImage} aria-label="Remover imagem">
+                <Icon name="x" size={11} strokeWidth={2.5} />
+              </button>
+            </span>
+          ) : null}
+          {contextFiles.map((path) => (
+            <span key={path} className="chip mono" title={path}>
+              {path.split("/").pop()}
+              <button
+                type="button"
+                className="chip__x"
+                onClick={() => onRemoveContextFile(path)}
+                aria-label={`Tirar ${path} do contexto`}
+              >
+                <Icon name="x" size={11} strokeWidth={2.5} />
+              </button>
+            </span>
+          ))}
         </div>
       ) : null}
 
-      {pendingImage ? (
-        <div className="composer__attach">
-          <img src={pendingImage} alt="anexo" />
-          <span className="composer__attach-label">imagem anexada</span>
-          <button
-            type="button"
-            className="composer__attach-x"
-            onClick={onClearImage}
-            title="Remover imagem"
-          >
-            ✕
-          </button>
-        </div>
-      ) : null}
-
-      <textarea
-        ref={inputRef}
-        className="composer__input"
-        placeholder={placeholder}
-        value={value}
-        disabled={disabled}
-        rows={1}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        onPaste={onPaste}
-      />
-
-      <div className="composer__row">
-        <button
-          type="button"
-          className={`composer__mic ${listening ? "composer__mic--on" : ""}`}
-          onClick={onToggleListen}
-          disabled={disabled || handsFree}
-          title={handsFree ? "Microfone automático (mãos-livres)" : listening ? "Parar de ouvir" : "Falar (microfone)"}
-          aria-pressed={listening}
-        >
-          {listening ? "■" : "🎤"}
-        </button>
-        <button
-          type="button"
-          className="composer__icon"
-          onClick={() => fileRef.current?.click()}
+      <label className="composer__field">
+        <span className="sr-only">Mensagem</span>
+        <textarea
+          ref={inputRef}
+          placeholder={placeholder}
+          value={value}
           disabled={disabled}
-          title="Anexar imagem"
-        >
-          📎
-        </button>
-        <button
-          type="button"
-          className="composer__icon"
-          onClick={onCaptureScreen}
-          disabled={disabled}
-          title="Capturar a tela"
-        >
-          🖥️
-        </button>
-        <button
-          type="button"
-          className="composer__icon"
-          onClick={onOcr}
-          disabled={disabled || ocrBusy}
-          title={
-            pendingImage
-              ? "Ler o texto da imagem (OCR)"
-              : "Ler o texto da tela (OCR)"
-          }
-        >
-          {ocrBusy ? "…" : "🔤"}
-        </button>
-        <button
-          type="button"
-          className={`composer__icon ${muted ? "composer__icon--muted" : ""}`}
-          onClick={() => onToggleMuted(!muted)}
-          title={muted ? "Voz silenciada — clique para ouvir a Friday" : "Silenciar a voz da Friday"}
-          aria-pressed={muted}
-        >
-          {muted ? "🔇" : "🔊"}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onAttachImage(file);
-            e.target.value = "";
-          }}
+          rows={1}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          onPaste={onPaste}
         />
-        {speaking ? (
-          <button type="button" className="composer__stop composer__send--right" onClick={onStopSpeaking} title="Interromper a fala da Friday">
-            ⏹ Parar
+      </label>
+
+      <div className="composer__bar">
+        <div className="composer__tools">
+          <button type="button" className="icon-btn" onClick={() => fileRef.current?.click()} disabled={disabled} aria-label="Anexar imagem" title="Anexar imagem">
+            <Icon name="paperclip" size={17} />
           </button>
-        ) : (
+          <button type="button" className="icon-btn" onClick={onCaptureScreen} disabled={disabled} aria-label="Capturar a tela" title="Capturar a tela">
+            <Icon name="monitor" size={17} />
+          </button>
           <button
-            className="composer__send composer__send--right"
-            onClick={submit}
-            disabled={disabled || (!value.trim() && !pendingImage)}
-            title="Enviar (Enter)"
+            type="button"
+            className="icon-btn"
+            onClick={onOcr}
+            disabled={disabled || ocrBusy}
+            aria-label={pendingImage ? "Ler o texto da imagem (OCR)" : "Ler o texto da tela (OCR)"}
+            title={pendingImage ? "Ler o texto da imagem (OCR)" : "Ler o texto da tela (OCR)"}
           >
-            {busy ? "…" : "Enviar"}
+            {ocrBusy ? <span className="spinner" aria-hidden="true" /> : <Icon name="scanText" size={17} />}
           </button>
-        )}
-      </div>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => onToggleMuted(!muted)}
+            aria-pressed={!muted}
+            aria-label={muted ? "Voz da Friday desligada" : "Voz da Friday ligada"}
+            title={muted ? "Ligar a voz da Friday" : "Silenciar a voz da Friday"}
+          >
+            <Icon name={muted ? "volumeOff" : "volume"} size={17} />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onAttachImage(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
 
-      <div className="composer__opts">
-        <label className="composer__toggle" title="Conversa contínua por voz, sem clicar">
-          <input type="checkbox" checked={handsFree} onChange={(e) => onToggleHandsFree(e.target.checked)} />
-          Mãos-livres
-        </label>
-
-        {handsFree ? (
-          <label className="composer__toggle" title="Só responder quando você chamar pelo nome">
-            <input type="checkbox" checked={requireWakeWord} onChange={(e) => onToggleRequireWake(e.target.checked)} />
-            chamar por
-            <input
-              className="composer__wake"
-              type="text"
-              value={wakeWord}
-              disabled={!requireWakeWord}
-              onChange={(e) => onChangeWakeWord(e.target.value)}
-              aria-label="Palavra de ativação"
-            />
-          </label>
-        ) : (
-          <label className="composer__toggle" title="Enviar a fala automaticamente ao terminar">
-            <input type="checkbox" checked={autoSend} onChange={(e) => onToggleAutoSend(e.target.checked)} />
-            Enviar a fala automaticamente
-          </label>
-        )}
+        <div className="composer__actions">
+          <span className="composer__hint">{busy ? "Gerando resposta…" : "Enter envia · Shift+Enter quebra linha"}</span>
+          <button
+            type="button"
+            className={`icon-btn icon-btn--outline ${listening ? "is-recording" : ""}`}
+            onClick={onToggleListen}
+            disabled={disabled}
+            aria-pressed={listening}
+            aria-label={listening ? "Parar de ouvir" : "Falar"}
+            title={listening ? "Parar de ouvir" : "Falar"}
+          >
+            <Icon name={listening ? "stop" : "mic"} size={17} />
+          </button>
+          {speaking ? (
+            <button type="button" className="icon-btn icon-btn--primary" onClick={onStopSpeaking} aria-label="Interromper a fala" title="Interromper a fala">
+              <Icon name="stop" size={15} />
+            </button>
+          ) : (
+            <button type="button" className="icon-btn icon-btn--primary" onClick={submit} disabled={!canSend} aria-label="Enviar" title="Enviar (Enter)">
+              <Icon name="arrowUp" size={17} strokeWidth={2.2} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
