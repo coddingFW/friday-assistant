@@ -72,3 +72,41 @@ def test_factory_rejects_unknown_provider() -> None:
     """Provedor de busca desconhecido deve falhar na fábrica."""
     with pytest.raises(ProviderConfigError):
         create_search_provider(Settings(_env_file=None, rag_provider="bing"))
+
+
+def test_interface_description_only_with_images() -> None:
+    """A descrição da própria tela só entra quando o turno traz imagem."""
+    settings = Settings(_env_file=None)
+    service = RagService(FakeSearchProvider(), settings)
+    marker = settings.interface_prompt[:40]
+
+    text_only = service.build_messages("oi", [])
+    assert text_only[0].content == settings.identity_prompt
+    assert marker not in text_only[0].content
+
+    with_image = service.build_messages("o que é isto?", [], images=["BASE64=="])
+    assert with_image[0].content.startswith(settings.identity_prompt)
+    assert marker in with_image[0].content
+
+    code_with_image = service.build_code_messages(
+        "e isto?", context_blocks=["arquivo"], images=["BASE64=="]
+    )
+    assert marker in code_with_image[0].content
+
+
+def test_code_messages_put_files_before_history() -> None:
+    """Arquivos antes do histórico: o prefixo estável aproveita o cache do Ollama."""
+    from backend.brain.ports import ChatMessage
+
+    settings = Settings(_env_file=None)
+    service = RagService(FakeSearchProvider(), settings)
+    history = [
+        ChatMessage(role="user", content="antes"),
+        ChatMessage(role="assistant", content="resposta"),
+    ]
+    messages = service.build_code_messages(
+        "agora", history, context_blocks=["Arquivo do projeto: a.py"]
+    )
+    contents = [m.content for m in messages]
+    assert contents.index("Arquivo do projeto: a.py") < contents.index("antes")
+    assert messages[-1].content == "agora"

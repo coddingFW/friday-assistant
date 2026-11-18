@@ -158,6 +158,8 @@ class OllamaProvider:
             result["num_ctx"] = options.num_ctx
         if options.temperature is not None:
             result["temperature"] = options.temperature
+        if options.num_predict is not None:
+            result["num_predict"] = options.num_predict
         return result
 
     @staticmethod

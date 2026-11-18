@@ -37,6 +37,35 @@ logger = get_logger(__name__)
 #: Sentinela que marca o fim do fluxo de eventos do produtor.
 _DONE = object()
 
+#: Caracteres por token usados na estimativa do histórico. Português fica perto
+#: de 3,5–4; usar 3 erra para o lado seguro (estima mais tokens do que há).
+_CHARS_PER_TOKEN = 3.0
+
+
+def trim_history(
+    history: Sequence[ChatMessage], max_tokens: int
+) -> list[ChatMessage]:
+    """Mantém as mensagens mais recentes do histórico que cabem em ``max_tokens``.
+
+    Percorre do fim para o começo somando uma estimativa de tokens e para na
+    primeira que não couber. Se a janela resultante começar por uma resposta da
+    assistente (sem a pergunta que a originou), descarta essa resposta órfã.
+    O histórico completo continua salvo na memória de longo prazo; isto só
+    decide o que entra no prompt deste turno.
+    """
+    kept: list[ChatMessage] = []
+    used = 0.0
+    for message in reversed(history):
+        cost = len(message.content) / _CHARS_PER_TOKEN + 4  # +4: marcação do papel
+        if used + cost > max_tokens:
+            break
+        kept.append(message)
+        used += cost
+    kept.reverse()
+    while kept and kept[0].role != "user":
+        kept.pop(0)
+    return kept
+
 
 class ConversationService:
     """Caso de uso: transformar uma pergunta em uma resposta (RAG + voz opcionais)."""
@@ -169,6 +198,34 @@ class ConversationService:
                 logger.warning("rag_retrieve_failed", error=str(exc))
                 results = []
 
+        # Janela/temperatura/teto por modo. Código tem os seus: arquivos do
+        # projeto ocupam muitos tokens e pedem respostas mais determinísticas.
+        if coding:
+            options = GenerationOptions(
+                num_ctx=self._settings.code_num_ctx,
+                temperature=self._settings.code_temperature,
+                num_predict=self._settings.code_num_predict,
+            )
+        else:
+            options = GenerationOptions(
+                num_ctx=self._settings.llm_num_ctx,
+                temperature=self._settings.llm_temperature,
+                num_predict=self._settings.llm_num_predict,
+            )
+
+        # O histórico ocupa no máximo uma fração da janela: nunca empurra os
+        # arquivos ou a pergunta para fora (o Ollama cortaria sem avisar).
+        history_budget = int(options.num_ctx * self._settings.history_token_share)
+        trimmed = trim_history(history, history_budget)
+        if len(trimmed) < len(history):
+            logger.info(
+                "history_trimmed",
+                kept=len(trimmed),
+                dropped=len(history) - len(trimmed),
+                budget_tokens=history_budget,
+            )
+        history = trimmed
+
         if coding:
             messages = self._rag.build_code_messages(
                 query, history, context_blocks, images=images
@@ -186,19 +243,6 @@ class ConversationService:
                 target_model = self._settings.code_model
             elif images:
                 target_model = self._settings.vision_model
-
-        # Código tem janela/temperatura próprias: arquivos do projeto ocupam
-        # muitos tokens e pedem respostas mais determinísticas.
-        if coding:
-            options = GenerationOptions(
-                num_ctx=self._settings.code_num_ctx,
-                temperature=self._settings.code_temperature,
-            )
-        else:
-            options = GenerationOptions(
-                num_ctx=self._settings.llm_num_ctx,
-                temperature=self._settings.llm_temperature,
-            )
 
         answer_parts: list[str] = []
         try:

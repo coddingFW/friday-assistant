@@ -236,6 +236,7 @@ async def test_coding_turn_uses_code_model_and_skips_rag() -> None:
     assert llm.options[-1] is not None
     assert llm.options[-1].num_ctx == 16384
     assert llm.options[-1].temperature == 0.2
+    assert llm.options[-1].num_predict == 2048
 
 
 async def test_chat_turn_uses_general_generation_options() -> None:

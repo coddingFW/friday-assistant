@@ -74,6 +74,14 @@ class Settings(BaseSettings):
             "do Ollama (2048–4096) trunca em silêncio o prompt com RAG + histórico."
         ),
     )
+    llm_num_predict: int | None = Field(
+        default=1024,
+        ge=1,
+        description=(
+            "Teto de tokens gerados por resposta na conversa geral. Só corta "
+            "respostas que entram em loop; vazio = sem teto."
+        ),
+    )
     llm_temperature: float | None = Field(
         default=None,
         ge=0,
@@ -108,23 +116,31 @@ class Settings(BaseSettings):
         default=(
             "Você é a Friday, uma assistente virtual multimodal que roda "
             "localmente no computador do usuário (100% offline). Você tem voz, "
-            "ouve pelo microfone e enxerga imagens e a tela.\n"
-            "Sua própria interface é um app de chat de tema escuro com detalhes "
-            "em verde-água (teal), contendo: no topo, seu nome 'Friday', o modelo "
-            "em uso, um indicador de estado (Ociosa/Pensando/Buscando/Respondendo) "
-            "e um selo 'online'; ao centro, seu avatar — um personagem vetorial "
-            "amigável de óculos; embaixo, um campo 'Escreva sua mensagem…' com "
-            "botões de microfone (mãos-livres), anexar imagem e capturar a tela, "
-            "além das opções 'Mãos-livres' e 'Enviar a fala automaticamente'.\n"
-            "Se uma imagem ou captura de tela mostrar ESSA interface (o avatar, o "
-            "campo 'Escreva sua mensagem…' e esses botões), reconheça que é a SUA "
-            "PRÓPRIA tela — não a de outro aplicativo — e fale na primeira pessoa "
-            "(ex.: 'esta é a minha interface')."
+            "ouve pelo microfone e enxerga imagens e a tela."
         ),
         description=(
-            "Prompt de identidade da Friday (quem ela é + descrição da própria "
-            "interface). Injetado como 1ª mensagem de sistema em todos os turnos, "
-            "para dar autoconhecimento e permitir reconhecer a própria tela."
+            "Identidade curta da Friday. Vai como 1ª mensagem de sistema em todos "
+            "os turnos. A descrição da própria tela (``interface_prompt``) só é "
+            "anexada quando o turno traz imagem — economiza tokens nos demais."
+        ),
+    )
+    interface_prompt: str = Field(
+        default=(
+            "Sua própria interface é um app de tema escuro, neutro, com detalhes "
+            "em verde-água (teal): à esquerda, uma barra com 'Friday', busca, a "
+            "árvore do projeto e as conversas recentes; no centro, o chat, com a "
+            "caixa 'Pergunte qualquer coisa…' (ou 'Pergunte sobre o projeto…') e "
+            "botões de anexar, capturar a tela, OCR, voz, microfone e enviar; à "
+            "direita, o painel 'Contexto' (arquivos e medidor de tokens) e "
+            "interruptores de voz. No modo mãos-livres, a tela mostra um círculo "
+            "verde-água com microfone, a legenda em destaque e a transcrição ao lado.\n"
+            "Se uma imagem ou captura de tela mostrar ESSA interface, reconheça "
+            "que é a SUA PRÓPRIA tela — não a de outro aplicativo — e fale na "
+            "primeira pessoa (ex.: 'esta é a minha interface')."
+        ),
+        description=(
+            "Descrição da própria interface, anexada à identidade só em turnos com "
+            "imagem (para a Friday reconhecer a própria tela em capturas)."
         ),
     )
     rag_system_prompt: str = Field(
@@ -144,6 +160,17 @@ class Settings(BaseSettings):
     )
 
     # --- Conversa (memória de curto prazo) --------------------------------
+    history_token_share: float = Field(
+        default=0.25,
+        gt=0,
+        le=0.9,
+        description=(
+            "Fração da janela de contexto (num_ctx) reservada ao histórico. As "
+            "mensagens mais antigas que não couberem saem do prompt (continuam "
+            "salvas no banco) — o histórico nunca empurra arquivos/pergunta para "
+            "fora da janela."
+        ),
+    )
     history_max_messages: int = Field(
         default=12,
         ge=0,
@@ -170,6 +197,14 @@ class Settings(BaseSettings):
             "Janela de contexto (tokens) dos turnos de código. Precisa caber "
             "prompts + histórico + workspace_context_char_budget (~3,5 chars/token). "
             "Mais contexto = mais VRAM; o qwen2.5-coder aceita até 32768."
+        ),
+    )
+    code_num_predict: int | None = Field(
+        default=2048,
+        ge=1,
+        description=(
+            "Teto de tokens gerados por resposta nos turnos de código (arquivo "
+            "completo cabe folgado). Vazio = sem teto."
         ),
     )
     code_temperature: float | None = Field(

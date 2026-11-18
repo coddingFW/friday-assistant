@@ -41,6 +41,8 @@ class GenerationOptions:
     num_ctx: int | None = None
     #: Aleatoriedade da amostragem (baixa = mais determinístico, bom p/ código).
     temperature: float | None = None
+    #: Teto de tokens gerados na resposta (corta só respostas em loop).
+    num_predict: int | None = None
 
 
 @runtime_checkable

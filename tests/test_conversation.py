@@ -162,3 +162,51 @@ async def test_run_reports_llm_failure() -> None:
     events = await _collect(service, "pergunta")
     assert any(isinstance(e, GenerationFailed) for e in events)
     assert events[-1] == StatusChanged(state="idle")
+
+
+def test_trim_history_keeps_most_recent_within_budget() -> None:
+    """Mantém as mais recentes que cabem; descarta resposta órfã no início."""
+    from backend.brain.conversation import trim_history
+
+    history = [
+        ChatMessage(role="user", content="u1" * 300),
+        ChatMessage(role="assistant", content="a1" * 300),
+        ChatMessage(role="user", content="u2"),
+        ChatMessage(role="assistant", content="a2" * 100),
+        ChatMessage(role="user", content="u3"),
+        ChatMessage(role="assistant", content="a3"),
+    ]
+    # Cabem as 4 últimas (~80 tokens) mas não a 2ª (~200 tokens).
+    kept = trim_history(history, max_tokens=150)
+    assert kept == history[2:]
+    # Orçamento que corta no meio de um par: a resposta órfã sai.
+    kept = trim_history(history, max_tokens=20)
+    assert kept == history[4:]
+    assert trim_history(history, max_tokens=0) == []
+    assert trim_history(history, max_tokens=10_000) == history
+
+
+async def test_run_trims_history_to_token_budget() -> None:
+    """Histórico maior que a fração da janela não vai inteiro ao LLM."""
+    from backend.config.settings import Settings
+    from backend.rag.service import RagService
+    from backend.brain.conversation import ConversationService
+    from tests.conftest import FakeSearchProvider
+
+    llm = FakeLLMProvider()
+    settings = Settings(
+        _env_file=None, rag_enabled=False, tts_enabled=False,
+        llm_num_ctx=1000, history_token_share=0.25,
+    )
+    service = ConversationService(llm, RagService(FakeSearchProvider(), settings), settings)
+    long_history = []
+    for i in range(10):
+        long_history.append(ChatMessage(role="user", content=f"pergunta {i}"))
+        long_history.append(ChatMessage(role="assistant", content="x" * 300))
+    _ = [e async for e in service.run("ultima", history=long_history)]
+    sent_history = [m for m in llm.calls[-1] if m.role != "system"][:-1]
+    assert 0 < len(sent_history) < len(long_history)
+    assert sent_history[-1] == long_history[-1]  # as mais recentes ficam
+    assert sent_history[0].role == "user"
+    # Teto de resposta da conversa geral também vai junto.
+    assert llm.options[-1].num_predict == 1024

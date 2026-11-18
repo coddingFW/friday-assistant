@@ -167,10 +167,14 @@ async def test_stream_chat_sends_generation_options() -> None:
         t
         async for t in provider.stream_chat(
             [ChatMessage(role="user", content="oi")],
-            options=GenerationOptions(num_ctx=16384, temperature=0.2),
+            options=GenerationOptions(num_ctx=16384, temperature=0.2, num_predict=2048),
         )
     ]
-    assert captured["options"] == {"num_ctx": 16384, "temperature": 0.2}
+    assert captured["options"] == {
+        "num_ctx": 16384,
+        "temperature": 0.2,
+        "num_predict": 2048,
+    }
 
     captured.clear()
     _ = [
